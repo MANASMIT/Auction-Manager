@@ -1,0 +1,4 @@
+{
+    "key": "shift+alt+g",
+    "command": "git.checkout"
+}
