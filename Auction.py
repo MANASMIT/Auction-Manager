@@ -25,6 +25,8 @@ class AuctionApp:
         self.separator_lines = []
         self.bidding_enabled = True  # Flag to control bidding process
 
+        self.bid_history = []  # Stack to store previous bid states
+
         # Create labels for each team's money and inventory
         self.money_labels = {}
         self.inventory_labels = {}
@@ -47,6 +49,10 @@ class AuctionApp:
         self.bid_status_label = tk.Label(master, text="Bidding Status: ", font=('Arial', 14))
         self.bid_status_label.grid(row=1, column=0, columnspan=2, pady=10, padx=5, sticky="w")
 
+        # Undo Button
+        self.undo_button = tk.Button(master, text="Undo", width=12, height=2, bg="orange", font=('Arial', 12), command=self.undo_last_bid, )
+        self.undo_button.grid(row=15, column=4, columnspan=1, pady=10, padx=5, sticky="nsew")
+
         # Display items along with starting prices
         self.item_list_text = scrolledtext.ScrolledText(master, width=30, height=30, font=('Arial', 12), wrap=tk.WORD)
         self.item_list_text.grid(row=2, column=4, rowspan=6, columnspan=2, padx=5, pady=5, sticky="sew")
@@ -58,7 +64,7 @@ class AuctionApp:
             self.item_list_text.insert("end", "\n")
 
         # Button to end bidding round
-        end_bidding_button = tk.Button(master, text="End Bidding Round", height=2, command=self.end_bidding_round, bg="red", font=('Arial', 12))
+        end_bidding_button = tk.Button(master, text="End Bidding Round", height=2, bg="red", font=('Arial', 12), command=self.end_bidding_round)
         end_bidding_button.grid(row=15, column=1, columnspan=2, pady=10, padx=5, sticky="nsew")
 
         # Set row and column weights for resizing
@@ -78,7 +84,7 @@ class AuctionApp:
         if self.bidding_enabled and self.current_item and self.team_money[team] >= int(self.current_bid):
             if self.highest_bidder != team:  # Only allow a bid from a different team
                 if self.highest_bidder is None:  # Base price, no increment for the first bid
-                    self.highest_bidder = team
+                    next_bid = self.current_bid
                 else:
                     # Increment logic based on current bid
                     if int(self.current_bid) < 50:
@@ -89,10 +95,30 @@ class AuctionApp:
                         bid_increment = 10  # Increment by 10 for bids between 100-200
                     else:
                         bid_increment = 25  # Increment by 25 for bids above 200
+                    
+                    next_bid = self.current_bid + bid_increment  # Calculate the next bid amount
 
-                    self.current_bid += bid_increment
-                    self.highest_bidder = team
+                # Check if the team has enough money to place this bid
+                if self.team_money[team] < next_bid:
+                    messagebox.showinfo("Bid Rejected", f"{team} does not have enough money to place this bid.")
+                    return  # Stop execution if the team can't afford the bid
+
+                self.bid_history.append((self.highest_bidder, self.current_bid)) # Save current bid state before updating
+                self.current_bid = next_bid
+                self.highest_bidder = team
                 self.update_labels()
+
+    def undo_last_bid(self):
+        """Restores the last bid before the most recent one."""
+        if self.bid_history:
+            previous_bidder, previous_bid = self.bid_history.pop()
+
+            # Restore previous bid state
+            self.current_bid = previous_bid
+            self.highest_bidder = previous_bidder
+            self.update_labels()
+        else:
+            messagebox.showinfo("Undo", "No previous bid to undo.")
 
     def end_bidding_round(self):
         if self.bidding_enabled and self.highest_bidder:
