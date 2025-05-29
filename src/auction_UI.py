@@ -2,10 +2,10 @@
 import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog, messagebox, scrolledtext, font as tkFont
-import os
+import os, sys
 import re
 import csv
-import json
+import json, pathlib
 import requests
 from datetime import datetime
 import threading
@@ -415,8 +415,10 @@ class TopMenuBar(tk.Frame):
         logs_btn = StyledButton(self.menu_items_frame, text="Show Logs", command=self.app_controller._open_log_viewer, font=get_font(9), bg=THEME_BG_CARD, fg=THEME_TEXT_PRIMARY, padx=8, pady=2)
         logs_btn.pack(side=tk.LEFT, padx=2)
 
-        help_label = tk.Label(self.menu_items_frame, text="Help", font=get_font(10, "bold"), bg=THEME_BG_CARD, fg=THEME_ACCENT_PRIMARY, padx=10)
-        help_label.pack(side=tk.LEFT, padx=(10,0))
+        help_btn = StyledButton(self.menu_items_frame, text="Help", 
+                                  command=self.app_controller._show_documentation, # New method in AuctionApp
+                                  font=get_font(9), bg=THEME_BG_CARD, fg=THEME_TEXT_PRIMARY, padx=8, pady=2)
+        help_btn.pack(side=tk.LEFT, padx=2)
         about_btn = StyledButton(self.menu_items_frame, text="About", command=self._show_about, font=get_font(9), bg=THEME_BG_CARD, fg=THEME_TEXT_PRIMARY, padx=8, pady=2)
         about_btn.pack(side=tk.LEFT, padx=2)
 
@@ -1407,6 +1409,55 @@ class AuctionApp(tk.Frame):
             return f"/static/images/{actual_filename_with_ext}"
         else:
             return None
+
+# You'll need _get_application_base_path (or similar) if you implemented it for images
+    # If not, define it here or ensure paths are correct.
+    def _get_application_base_path(self): # Copied from previous suggestion
+        if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+            return sys._MEIPASS 
+        else:
+            # This assumes auction_UI.py is at the project root, or 'templates' is a sibling.
+            # If auction_UI.py is in 'src/', and 'templates' is at root:
+            # return os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+            return os.path.abspath(os.path.dirname(__file__))
+
+    def _show_documentation(self):
+        try:
+            base_path = self._get_application_base_path()
+            # Assuming documentation.html is directly in 'templates'
+            # and 'templates' is either bundled (found via _MEIPASS) 
+            # or a sibling to auction_UI.py in development.
+            doc_filename = "documentation.html"
+            doc_path_in_templates = os.path.join("templates", doc_filename) # Relative path for bundling
+            
+            # Construct the absolute path
+            if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+                # Bundled: path is relative to _MEIPASS
+                doc_file_abs_path = os.path.join(base_path, doc_path_in_templates)
+            else:
+                # Development: path is relative to script or project root
+                # Assuming 'templates' is a subdirectory of where auction_UI.py is, or where base_path points
+                doc_file_abs_path = os.path.join(base_path, "templates", doc_filename)
+
+            if not os.path.exists(doc_file_abs_path):
+                # Fallback if structure is different (e.g. auction_UI in src, templates at root)
+                alt_base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+                alt_doc_path = os.path.join(alt_base_path, "templates", doc_filename)
+                if os.path.exists(alt_doc_path):
+                    doc_file_abs_path = alt_doc_path
+                else:
+                    messagebox.showerror("Error", f"Documentation file not found at expected locations:\n1. {doc_file_abs_path}\n2. {alt_doc_path}", parent=self)
+                    return
+
+            # Convert to a file:/// URL
+            doc_url = pathlib.Path(doc_file_abs_path).as_uri()
+            print(f"Opening documentation: {doc_url}")
+            webbrowser.open(doc_url)
+
+        except Exception as e:
+            messagebox.showerror("Error Opening Documentation", f"Could not open documentation: {e}", parent=self)
+            import traceback
+            traceback.print_exc()
 
 def main():
     # ... (No changes from your provided code, includes handle_resume_auction_logic) ...

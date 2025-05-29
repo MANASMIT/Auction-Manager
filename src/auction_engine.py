@@ -633,21 +633,21 @@ def generate_template_csv_content():
 Team name,Team starting money,{TEAM_LOGO_PATH_KEY}
 # ^ This line above is the REQUIRED header for all the sections. Do not change its format.
 # Add your team data below, one team per line:
-# Logo paths can be absolute or relative to the CSV file's location.
-Team Alpha,5000,path/to/logos/alpha_logo.png
-Team Bravo,4800,path/to/logos/bravo_logo.jpg
-Team Charlie,5200,C:/absolute/path/to/charlie.gif
+# (Optional) Logo format '[Team-name-logo.ext]'; location static/images directory.
+Team Alpha,5000,path/to/logos/Team-Alpha-logo.png
+Team Bravo,4800,path/to/logos/Team-Bravo-logo.jpg
+Team Charlie,5200,Team-Charlie-logo.gif
 
 {LOG_SECTION_PLAYERS_INITIAL}
 Player name,Bid value,{PLAYER_PHOTO_PATH_KEY}
 # ^ This line above is the REQUIRED header for all the sections. Do not change its format.
 # Add your player data below, one player per line:
-# Profile photo paths can be absolute or relative.
-Player One,100,path/to/photos/player1.png
+# (Optional) Profile photo format '[Player-name.ext]'; location static/images directory.
+Player One,100,Player-One.png
 Player Two,80,
-Player Three (WK),75,path/to/photos/player3_wk.png
-Player Four (BAT),120,path/to/photos/player4.jpeg
-Player Five (BOWL),90,images/player5_bowl.png
+Player Three (WK),75,Player-Three-(WK).png
+Player Four (BAT),120,
+Player Five (BOWL),90,
 Player Six (ALL),110,
 
 {LOG_SECTION_BID_INCREMENT_RULES}

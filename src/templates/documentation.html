@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auction Command - Documentation</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex; /* For sidebar layout */
+        }
+
+        #toc-sidebar {
+            width: 280px; /* Width of the sidebar */
+            position: fixed; /* Fixed Sidebar (stay in place on scroll) */
+            height: 100%;
+            overflow-y: auto; /* Scrollable if content is too long */
+            background-color: #2c3e50; /* Dark sidebar */
+            padding: 20px;
+            color: #ecf0f1;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        }
+
+        #toc-sidebar h2 {
+            margin-top: 0;
+            color: #1abc9c; /* Accent color for TOC title */
+            border-bottom: 1px solid #34495e;
+            padding-bottom: 10px;
+        }
+
+        #toc-sidebar ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        #toc-sidebar ul li a {
+            display: block;
+            padding: 8px 0;
+            color: #bdc3c7;
+            text-decoration: none;
+            transition: color 0.3s ease, padding-left 0.3s ease;
+        }
+
+        #toc-sidebar ul li a:hover,
+        #toc_sidebar ul li a.active { /* Style for active link (JS can handle this) */
+            color: #1abc9c;
+            padding-left: 10px;
+        }
+        
+        #toc-sidebar ul ul { /* Nested list for sub-sections */
+            padding-left: 20px;
+        }
+        #toc-sidebar ul ul li a {
+            font-size: 0.9em;
+            color: #95a5a6;
+        }
+
+
+        #main-content {
+            margin-left: 300px; /* Same as sidebar width + some padding */
+            padding: 20px 40px;
+            max-width: 900px; /* Content width */
+        }
+
+        header h1 {
+            color: #2c3e50;
+            border-bottom: 2px solid #1abc9c;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+        }
+
+        section {
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        section:last-child {
+            border-bottom: none;
+        }
+
+        h2 {
+            color: #34495e;
+            margin-top: 0;
+        }
+        
+        h3 {
+            color: #2980b9;
+        }
+
+        p, li {
+            font-size: 1.05em;
+            margin-bottom: 10px;
+        }
+
+        code, pre {
+            background-color: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.95em;
+        }
+
+        pre {
+            padding: 15px;
+            overflow-x: auto;
+            display: block;
+            white-space: pre-wrap; /* Wrap long lines but preserve spaces */
+            word-wrap: break-word;
+        }
+
+        .note {
+            background-color: #e7f3fe;
+            border-left: 5px solid #2196F3;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        
+        .warning {
+            background-color: #fff3cd;
+            border-left: 5px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #34495e;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            #toc-sidebar {
+                position: static; /* Sidebar goes on top on small screens */
+                width: 100%;
+                height: auto;
+                margin-bottom: 20px;
+            }
+            #main-content {
+                margin-left: 0;
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <nav id="toc-sidebar">
+        <h2>Contents</h2>
+        <ul>
+            <li><a href="#introduction">Introduction</a></li>
+            <li><a href="#getting-started">Getting Started</a>
+                <ul>
+                    <li><a href="#new-auction">Starting a New Auction</a></li>
+                    <li><a href="#resume-auction">Resuming an Auction</a></li>
+                </ul>
+            </li>
+            <li><a href="#csv-format">CSV Setup File Format</a>
+                <ul>
+                    <li><a href="#csv-config">Config Section</a></li>
+                    <li><a href="#csv-teams">Teams Section</a></li>
+                    <li><a href="#csv-players">Players Section</a></li>
+                    <li><a href="#csv-bid-rules">Bid Increment Rules</a></li>
+                    <li><a href="#csv-images">Image Paths</a></li>
+                </ul>
+            </li>
+            <li><a href="#auction-panel">Admin Auction Panel</a>
+                <ul>
+                    <li><a href="#panel-overview">Overview</a></li>
+                    <li><a href="#panel-selecting">Selecting a Player</a></li>
+                    <li><a href="#panel-bidding">Placing Bids (Admin)</a></li>
+                    <li><a href="#panel-selling">Selling/Passing</a></li>
+                    <li><a href="#panel-undo">Undo Bid</a></li>
+                </ul>
+            </li>
+            <li><a href="#webview-features">Webview Features (Optional)</a>
+                <ul>
+                    <li><a href="#webview-setup">Enabling Webviews</a></li>
+                    <li><a href="#presenter-view">Presenter View</a></li>
+                    <li><a href="#manager-view">Team Manager View</a></li>
+                    <li><a href="#manager-bidding">Bidding from Manager View</a></li>
+                </ul>
+            </li>
+            <li><a href="#troubleshooting">Troubleshooting</a>
+                <ul>
+                    <li><a href="#ts-firewall">Firewall Issues (Webview)</a></li>
+                    <li><a href="#ts-images">Images Not Showing</a></li>
+                </ul>
+            </li>
+            <li><a href="#faq">FAQ</a></li>
+        </ul>
+    </nav>
+
+    <div id="main-content">
+        <header>
+            <h1>Auction Command - User Documentation</h1>
+        </header>
+
+        <section id="introduction">
+            <h2>Introduction</h2>
+            <p>Welcome to Auction Command! This application helps you manage player auctions smoothly and efficiently. This document provides an overview of its features, setup instructions, and troubleshooting tips.</p>
+        </section>
+
+        <section id="getting-started">
+            <h2>Getting Started</h2>
+            <p>To begin, launch the Auction Command application.</p>
+
+            <h3 id="new-auction">Starting a New Auction</h3>
+            <ol>
+                <li>On the initial screen, click "START NEW AUCTION".</li>
+                <li>You will be prompted to provide an "Auction Name".</li>
+                <li>Click "BROWSE SETUP FILE" to select your auction data CSV file. See the <a href="#csv-format">CSV Setup File Format</a> section for details on how to prepare this file.</li>
+                <li>Once the file is selected and parsed successfully, the main auction panel will open.</li>
+            </ol>
+
+            <h3 id="resume-auction">Resuming an Auction</h3>
+            <p>Auctions are automatically logged. To resume a previous session:</p>
+            <ol>
+                <li>On the initial screen, click "RESUME AUCTION".</li>
+                <li>If a single <code>.auctionlog</code> file is found in the application's directory, you'll be asked to confirm.</li>
+                <li>Otherwise, you'll be prompted to browse for the desired <code>.auctionlog</code> file.</li>
+                <li>The auction will load to its last saved state.</li>
+            </ol>
+        </section>
+
+        <section id="csv-format">
+            <h2>CSV Setup File Format</h2>
+            <p>The auction setup CSV file is crucial for initializing your auction with teams, players, and configuration. The file is divided into sections, each starting with a specific tag (e.g., <code>[CONFIG]</code>).</p>
+            <div class="note">
+                <strong>Important:</strong> You can generate a template CSV by running the application from the command line with the <code>-t</code> flag: <code>python auction_engine.py -t</code>. This will create <code>auction_setup_template.csv</code>.
+            </div>
+
+            <h3 id="csv-config"><code>[CONFIG]</code> Section</h3>
+            <p>This section defines global auction settings.</p>
+            <pre>
+[CONFIG]
+AuctionName,My Grand Auction
+#Date,YYYY-MM-DD (Optional, logged automatically)
+#Time,HH:MM:SS (Optional, logged automatically)
+            </pre>
+            <ul>
+                <li><code>AuctionName</code>: The name of your auction.</li>
+            </ul>
+            
+            <h3 id="csv-teams"><code>[TEAMS_INITIAL]</code> Section</h3>
+            <p>Defines the participating teams.</p>
+            <pre>
+[TEAMS_INITIAL]
+Team name,Team starting money,Logo Path
+Team Alpha,50000,Team-Alpha-logo.png
+Team Bravo,48000,Team-Bravo-logo.jpg
+Team Charlie,52000,  // No logo specified
+            </pre>
+            <ul>
+                <li>The header row <code>Team name,Team starting money,Logo Path</code> is required.</li>
+                <li><code>Team name</code>: Name of the team.</li>
+                <li><code>Team starting money</code>: Initial budget for the team.</li>
+                <li><code>Logo Path</code>: (Optional) Filename of the team's logo. See <a href="#csv-images">Image Paths</a>.</li>
+            </ul>
+
+            <h3 id="csv-players"><code>[PLAYERS_INITIAL]</code> Section</h3>
+            <p>Defines the players available for auction.</p>
+            <pre>
+[PLAYERS_INITIAL]
+Player name,Bid value,Profile Photo Path
+Player One,1000,Player-One.png
+Player Two (WK),800,Player-Two-(WK).jpg
+Player Three (BAT),1200,
+            </pre>
+            <ul>
+                <li>The header row <code>Player name,Bid value,Profile Photo Path</code> is required.</li>
+                <li><code>Player name</code>: Name of the player. You can include roles like "(WK)", "(BAT)", "(BOWL)", "(ALL)" in the name for display.</li>
+                <li><code>Bid value</code>: The base/starting bid for the player.</li>
+                <li><code>Profile Photo Path</code>: (Optional) Filename of the player's photo. See <a href="#csv-images">Image Paths</a>.</li>
+            </ul>
+            
+            <h3 id="csv-bid-rules"><code>[BID_INCREMENT_RULES]</code> Section</h3>
+            <p>(Optional) Defines custom bid increment rules. If omitted or empty, default rules apply.</p>
+            <pre>
+[BID_INCREMENT_RULES]
+Threshold,Increment
+0,100
+5000,200
+10000,500
+# Threshold: If current bid is >= this value...
+# Increment: ...then the next bid increases by this amount.
+# Rules are evaluated from highest threshold downwards.
+            </pre>
+            <ul>
+                <li>The header row <code>Threshold,Increment</code> is recommended for clarity but not strictly parsed as a header if the section only contains data rows.</li>
+                <li>Each data row defines a rule: a threshold and the increment to apply if the current bid is at or above that threshold.</li>
+            </ul>
+
+            <h3 id="csv-images">Image Paths (for Logos and Photos)</h3>
+            <div class="warning">
+                <strong>Action Required by Admin:</strong> For logos and profile photos to appear in the web views, the image files (e.g., <code>Team-Alpha-logo.png</code>, <code>Player-One.png</code>) specified in the CSV must be manually placed by the administrator into the <code>static/images/</code> directory, which should be located alongside the main application executable.
+            </div>
+            <ul>
+                <li>In the CSV, provide **only the filename** (e.g., <code>MyImage.png</code>).</li>
+                <li>Do not include paths like <code>static/images/</code> or <code>C:\Users\...</code> in the CSV.</li>
+                <li>The application will look for these filenames inside its <code>static/images/</code> folder.</li>
+                <li>Supported formats: PNG, JPG/JPEG, GIF, WEBP are generally well-supported by browsers.</li>
+                <li>For filenames with spaces or special characters, it's best to replace spaces with hyphens (e.g., "Player One.png" should be named <code>Player-One.png</code> and referenced as such in the CSV). The application attempts to sanitize names like "Player One (WK)" to "Player-One-(WK)" when forming filenames.</li>
+            </ul>
+        </section>
+
+        <section id="auction-panel">
+            <h2>Admin Auction Panel</h2>
+            <h3 id="panel-overview">Overview</h3>
+            <p>The main panel displays:</p>
+            <ul>
+                <li><strong>Auction Name and Status:</strong> Current item, highest bid, and bidder.</li>
+                <li><strong>Teams Overview:</strong> Cards for each team showing their name, remaining money, and current inventory.</li>
+                <li><strong>Available Players:</strong> A list of players yet to be auctioned. Click on a player to select them for bidding.</li>
+                <li><strong>Auction Controls:</strong> Buttons to Sell, Pass, or Undo the last bid.</li>
+            </ul>
+
+            <h3 id="panel-selecting">Selecting a Player</h3>
+            <p>Click on a player's name in the "Available Players" list. This player will become the "Current Item" for bidding.</p>
+            <ul>
+                <li>If another player was active with no bids, they are automatically passed (returned to available pool).</li>
+                <li>If another player was active *with bids*, you will be asked to confirm. If you confirm, the previously active player (with bids) will be passed and returned to the available pool.</li>
+            </ul>
+
+            <h3 id="panel-bidding">Placing Bids (Admin)</h3>
+            <p>Once a player is selected, team cards will have a "BID NOW 💸" button. Click this button for the respective team to place a bid. The bid amount automatically increments based on the defined bid increment rules.</p>
+
+            <h3 id="panel-selling">Selling/Passing an Item</h3>
+            <ul>
+                <li><strong>SELL ITEM:</strong> If there's a highest bidder for the current item, click this to sell the player to that team for the current bid amount. The player is added to the team's inventory, and their money is deducted.</li>
+                <li><strong>PASS ITEM:</strong> If you want to pass on the current player (e.g., no interest, or to manually end bidding without a sale), click this. The player is returned to the "Available Players" list. If the item had bids, you'll be asked to confirm.</li>
+            </ul>
+            
+            <h3 id="panel-undo">Undo Last Bid</h3>
+            <p>Click "UNDO LAST BID" to revert the most recent bid. The bidding state will roll back to the previously highest bidder and amount. This cannot undo a "SOLD" or "PASSED" action.</p>
+        </section>
+
+        <section id="webview-features">
+            <h2>Webview Features (Optional)</h2>
+            <p>These features require Flask and Flask-SocketIO to be installed (<code>pip install Flask Flask-SocketIO eventlet</code>). <code>eventlet</code> is recommended for better performance.</p>
+
+            <h3 id="webview-setup">Enabling Webviews</h3>
+            <p>Use the "Menu" button in the top-left of the admin panel:</p>
+            <ul>
+                <li><strong>Start/Stop Presenter Webview:</strong> Toggles the live presenter view. When started, it may open the presenter page in your default browser.</li>
+                <li><strong>Enable/Disable Manager Access:</strong> Toggles the availability of team manager views.</li>
+                <li><strong>Show Manager Links:</strong> If manager access is enabled, this opens a window displaying unique access URLs for each team manager. These URLs should be shared securely with the respective managers.</li>
+            </ul>
+            <p>The web server runs on <code>http://localhost:5000</code> by default. If your PC is on a local network and its firewall is configured, other devices on the same network can access these views using your PC's local IP address instead of <code>localhost</code>.</p>
+
+            <h3 id="presenter-view">Presenter View</h3>
+            <p>Accessible via <code>http://localhost:5000/presenter</code> (or your PC's IP).</p>
+            <p>This view is read-only and designed for display to an audience. It shows:</p>
+            <ul>
+                <li>Current item for bidding (name, photo, base bid).</li>
+                <li>Current bidding status (highest bid, highest bidder with logo).</li>
+                <li>A ticker of recently sold items.</li>
+                <li>An overview of all teams. Clicking a team shows their current roster in a modal.</li>
+            </ul>
+
+            <h3 id="manager-view">Team Manager View</h3>
+            <p>Accessible via unique URLs (e.g., <code>http://localhost:5000/manager/TeamName/AccessToken</code>) obtained from the "Show Manager Links" window in the admin panel.</p>
+            <p>This view is specific to a team manager and shows:</p>
+            <ul>
+                <li>Their team's status (funds, logo, current roster).</li>
+                <li>Current item for bidding (same as presenter view).</li>
+                <li>A "Place Bid" button for their team (active only when an item is up for bidding and they can afford it).</li>
+                <li>Current overall bidding status.</li>
+                <li>Ability to view rosters of other teams via a dropdown.</li>
+                <li>A ticker of recently sold items.</li>
+            </ul>
+
+            <h3 id="manager-bidding">Bidding from Manager View</h3>
+            <p>When an item is selected by the admin and the manager can afford the next bid, the "Place Bid" button in their manager view becomes active. Clicking it submits a bid for their team, which is processed by the auction engine as if the admin placed it for them.</p>
+        </section>
+
+        <section id="troubleshooting">
+            <h2>Troubleshooting</h2>
+            <h3 id="ts-firewall">Webviews Not Accessible from Other Devices</h3>
+            <ul>
+                <li>Ensure the Flask server is started with <code>host='0.0.0.0'</code> (this is default in the app).</li>
+                <li>Check your Windows Firewall (or any other firewall/antivirus software). You may need to create an inbound rule to allow connections on the port the server is using (default: 5000 TCP).</li>
+                <li>Ensure the device trying to access is on the same network as the PC running the auction (e.g., same Wi-Fi, or phone connected to PC's hotspot).</li>
+                <li>Use the correct IP address of the host PC in the URL, not <code>localhost</code>.</li>
+            </ul>
+            <h3 id="ts-images">Images Not Showing in Webviews</h3>
+            <ul>
+                <li>Verify that the image files (e.g., <code>Player-One.png</code>) exist in the <code>static/images/</code> directory, which must be located alongside the application executable.</li>
+                <li>Ensure the filenames in your CSV (<code>Logo Path</code>, <code>Profile Photo Path</code> columns) exactly match the filenames in the <code>static/images/</code> folder (case-sensitive on some systems).</li>
+                <li>Check the browser's developer console (usually F12) for 404 (Not Found) errors for image URLs.</li>
+            </ul>
+        </section>
+
+        <section id="faq">
+            <h2>FAQ</h2>
+            <p><strong>Q: Can I change bid increment rules mid-auction?</strong><br>
+            A: No, bid increment rules are loaded at the start (from CSV or defaults) and cannot be changed during an active auction session through the UI.</p>
+
+            <p><strong>Q: How are player roles (WK, BAT) handled?</strong><br>
+            A: Player roles are purely for display if included in the "Player name" field in the CSV (e.g., "Player X (WK)"). The engine itself doesn't currently have specific logic based on roles, but they will appear in player lists and item names.</p>
+            
+            <p><strong>Q: What happens if I close the admin panel?</strong><br>
+            A: The current auction state is logged, and the web server (if active) attempts a graceful shutdown. You can resume the auction later using the <code>.auctionlog</code> file.</p>
+        </section>
+
+    </div>
+    <script>
+        // Simple script for smooth scrolling and active TOC link (optional)
+        document.querySelectorAll('#toc-sidebar a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+                // Optional: Add 'active' class to clicked link
+                document.querySelectorAll('#toc-sidebar a').forEach(a => a.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>
