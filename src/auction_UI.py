@@ -295,7 +295,7 @@ class FileSelectPageForResume(FileSelectPage):
 class LogViewerDialog(tk.Toplevel): # No changes needed here from previous full version
     def __init__(self, master, log_filepath, load_state_callback):
         super().__init__(master); self.log_filepath = log_filepath; self.load_state_callback = load_state_callback
-        self.title("Auction Log History Viewer"); self.geometry("1000x750"); self.configure(bg=THEME_BG_PRIMARY); self.grab_set(); self.focus_set()
+        self.title("Auction Log History Viewer"); self.geometry("1200x750"); self.configure(bg=THEME_BG_PRIMARY); self.grab_set(); self.focus_set()
         style = ttk.Style(self); style.theme_use("clam")
         style.configure("Treeview", background=THEME_BG_SECONDARY, foreground=THEME_TEXT_PRIMARY, fieldbackground=THEME_BG_SECONDARY, font=get_font(10), rowheight=get_font(10).metrics('linespace') + 6)
         style.configure("Treeview.Heading", font=get_font(11, "bold"), background=THEME_BG_CARD, foreground=THEME_ACCENT_PRIMARY, relief=tk.FLAT, borderwidth=0)
@@ -375,7 +375,7 @@ class AuctionApp(tk.Frame): # No changes needed here from previous full version
         self.current_item_display_frame = tk.Frame(header_frame, bg=THEME_BG_SECONDARY); self.current_item_display_frame.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(10,10)) 
         tk.Label(self.current_item_display_frame, text="CURRENT ITEM:", font=get_font(10, "bold"), bg=THEME_BG_SECONDARY, fg=THEME_TEXT_SECONDARY, anchor="e").pack(side=tk.LEFT)
         self.current_item_label = tk.Label(self.current_item_display_frame, text="-- NONE --", font=get_font(14, "bold"), bg=THEME_BG_SECONDARY, fg=THEME_TEXT_PRIMARY, anchor="w"); self.current_item_label.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
-        main_content = tk.Frame(self, bg=THEME_BG_PRIMARY); main_content.pack(fill="both", expand=True, side=tk.TOP); main_content.grid_columnconfigure(0, weight=40); main_content.grid_columnconfigure(1, weight=60); main_content.grid_rowconfigure(0, weight=1)
+        main_content = tk.Frame(self, bg=THEME_BG_PRIMARY); main_content.pack(fill="both", expand=True, side=tk.TOP); main_content.grid_columnconfigure(0, weight=80); main_content.grid_columnconfigure(1, weight=20); main_content.grid_rowconfigure(0, weight=1)
         teams_outer_frame = tk.Frame(main_content, bg=THEME_BG_SECONDARY, bd=0, relief=tk.FLAT); teams_outer_frame.grid(row=0, column=0, sticky="nsew", padx=(0,5)); teams_outer_frame.rowconfigure(1, weight=1); teams_outer_frame.columnconfigure(0, weight=1)
         tk.Label(teams_outer_frame, text="🏆 TEAMS OVERVIEW", font=get_font(16, "bold"), bg=THEME_BG_SECONDARY, fg=THEME_ACCENT_PRIMARY, pady=10, padx=10, anchor="w").grid(row=0, column=0, columnspan=2, sticky="ew")
         self.teams_canvas = tk.Canvas(teams_outer_frame, bg=THEME_BG_SECONDARY, highlightthickness=0); self.teams_canvas.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0,10))
@@ -542,16 +542,71 @@ def main(): # Logic largely same
         except Exception as e: import traceback; traceback.print_exc(); messagebox.showerror("Critical Setup Error", f"Unexpected setup error: {e}", parent=root)
     def start_resumed_auction_ui(log_file_path_str):
         nonlocal auction_engine_main
-        try: auction_engine_main.load_auction_from_log(log_file_path_str); show_page(AuctionApp, auction_engine_instance=auction_engine_main)
-        except (LogFileError, AuctionError) as e: messagebox.showerror("Resume Error", f"Resume failed '{os.path.basename(log_file_path_str)}':\n{e}", parent=root); show_page(InitialPage, lambda: show_page(FileSelectPage, start_new_auction_ui, title="CREATE NEW AUCTION"), lambda: show_page(FileSelectPageForResume, start_resumed_auction_ui))
-        except Exception as e: import traceback; traceback.print_exc(); messagebox.showerror("Critical Load Error", f"Unexpected load error: {e}", parent=root)
+        try: 
+            auction_engine_main.load_auction_from_log(log_file_path_str)
+            show_page(AuctionApp, auction_engine_instance=auction_engine_main)
+        except (LogFileError, AuctionError) as e: 
+            messagebox.showerror("Resume Error", f"Resume failed '{os.path.basename(log_file_path_str)}':\n{e}", parent=root)
+            show_page(InitialPage, 
+                      lambda: show_page(FileSelectPage, start_new_auction_ui, title="CREATE NEW AUCTION"), 
+                      handle_resume_auction_logic) # Use the new handler here for fallback
+        except Exception as e: 
+            import traceback
+            traceback.print_exc()
+            messagebox.showerror("Critical Load Error", f"Unexpected load error: {e}", parent=root)
+            # Fallback to initial page on critical error
+            show_page(InitialPage, 
+                      lambda: show_page(FileSelectPage, start_new_auction_ui, title="CREATE NEW AUCTION"), 
+                      handle_resume_auction_logic)
+    
+    def handle_resume_auction_logic():
+        cwd = os.getcwd()
+        try:
+            log_files_in_cwd = [
+                f for f in os.listdir(cwd) 
+                if f.endswith(LOG_FILE_EXTENSION) and os.path.isfile(os.path.join(cwd, f))
+            ]
+        except OSError as e:
+            messagebox.showwarning("Directory Error", f"Could not scan current directory for log files: {e}", parent=root)
+            log_files_in_cwd = [] # Proceed as if no files found
+
+        if len(log_files_in_cwd) == 1:
+            log_file_path_str = os.path.join(cwd, log_files_in_cwd[0])
+            if messagebox.askyesno(
+                "Resume Auction", 
+                f"Found one log file in the current directory:\n'{log_files_in_cwd[0]}'\n\nDo you want to resume this auction?", 
+                parent=root,
+                icon='question'
+            ):
+                # Attempt to load this single file directly
+                start_resumed_auction_ui(log_file_path_str)
+            else:
+                # User declined the auto-selected file, show the manual browser
+                show_page(FileSelectPageForResume, start_resumed_auction_ui)
+        else:
+            if not log_files_in_cwd: # len is 0
+                messagebox.showinfo(
+                    "No Logs Found", 
+                    "No .auctionlog files found in the current directory.\nPlease browse to locate one.", 
+                    parent=root
+                )
+            elif len(log_files_in_cwd) > 1:
+                 messagebox.showinfo(
+                    "Multiple Logs Found", 
+                    "Multiple .auctionlog files found in the current directory.\nPlease select one manually.", 
+                    parent=root
+                )
+            # Proceed to show the manual file browser page
+            show_page(FileSelectPageForResume, start_resumed_auction_ui)
+    
     def on_root_close():
         nonlocal current_page_widget
         if isinstance(current_page_widget, AuctionApp): current_page_widget.on_app_frame_closing()
         elif auction_engine_main and auction_engine_main.get_log_filepath(): auction_engine_main.close_logger()
         root.destroy()
     root.protocol("WM_DELETE_WINDOW", on_root_close)
-    show_page(InitialPage, lambda: show_page(FileSelectPage, start_new_auction_ui, title="CREATE NEW AUCTION"), lambda: show_page(FileSelectPageForResume, start_resumed_auction_ui))
+    show_page(InitialPage, lambda: show_page(FileSelectPage, start_new_auction_ui, title="CREATE NEW AUCTION"), 
+              handle_resume_auction_logic)
     root.mainloop()
 
 if __name__ == "__main__":
