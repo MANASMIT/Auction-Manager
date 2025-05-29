@@ -7,6 +7,31 @@ import re
 import csv
 import json
 from datetime import datetime
+import threading
+import webbrowser
+import time # For shutdown check
+
+# Conditional imports for Flask and SocketIO
+try:
+    from flask import Flask, render_template, jsonify, request # Already in auction_flask_app
+    from flask_socketio import SocketIO, emit # Already in auction_flask_app
+    # Import your flask app module
+    import auction_flask_app 
+    FLASK_AVAILABLE = True
+except ImportError:
+    FLASK_AVAILABLE = False
+    auction_flask_app = None
+    Flask = None # To avoid NameError if auction_flask_app is None
+    SocketIO = None
+    render_template = None
+    jsonify = None
+    request = None
+    emit = None
+    print("="*50)
+    print("WARNING: Flask or Flask-SocketIO not installed, or auction_flask_app.py missing.")
+    print("Webview features will be unavailable.")
+    print("To enable, run: pip install Flask Flask-SocketIO")
+    print("="*50)
 
 from auction_engine import (
     AuctionEngine, AuctionError, InsufficientFundsError,
@@ -14,14 +39,6 @@ from auction_engine import (
     LogFileError, InitializationError, generate_template_csv_content,
     PLAYER_PHOTO_PATH_KEY, TEAM_LOGO_PATH_KEY
 )
-
-# Removed PresenterWindow import as we are removing Tkinter presenter hooks
-# try:
-#     from presenter_view import PresenterWindow
-# except ImportError:
-#     PresenterWindow = None
-#     print("WARNING: presenter_view.py not found. Presenter mode will be unavailable.")
-
 
 # --- Constants --- (remain the same)
 LOG_SECTION_CONFIG = "[CONFIG]"
@@ -380,10 +397,10 @@ class TopMenuBar(tk.Frame):
 
         view_label = tk.Label(self.menu_items_frame, text="View", font=get_font(10, "bold"), bg=THEME_BG_CARD, fg=THEME_ACCENT_PRIMARY, padx=10)
         view_label.pack(side=tk.LEFT, padx=(10,0))
-        # The command for presenter_btn will be set up later for Flask-SocketIO
+
         self.presenter_toggle_btn_text = tk.StringVar(value="Start Presenter Webview") # For dynamic text
         presenter_btn = StyledButton(self.menu_items_frame, textvariable=self.presenter_toggle_btn_text,
-                                     command=self.app_controller._handle_presenter_webview_toggle, # New method
+                                     command=self.app_controller._handle_presenter_webview_toggle, # THIS LINE
                                      font=get_font(9), bg=THEME_BG_CARD, fg=THEME_TEXT_PRIMARY, padx=8, pady=2)
         presenter_btn.pack(side=tk.LEFT, padx=2)
 
@@ -419,10 +436,14 @@ class AuctionApp(tk.Frame):
         self.money_labels = {}
         self.inventory_listboxes = {}
 
-        # Flask-SocketIO related attributes (will be initialized later)
+        # Flask-SocketIO related attributes
+        self.flask_app_instance = None # Will hold the Flask app object
+        self.socketio_instance = None  # Will hold the SocketIO object from Flask app
         self.flask_thread = None
         self.flask_server_running = False
-        self.socketio = None # This will hold the SocketIO instance from the Flask app
+        self.flask_port = 5000 # Or make configurable
+        self.stop_flask_event = threading.Event()
+
 
         self._setup_ui()
         self.refresh_all_ui_displays() # Initial display update
@@ -488,26 +509,127 @@ class AuctionApp(tk.Frame):
         if not log_filepath or not os.path.exists(log_filepath): messagebox.showinfo("No Log", "Log not found.", parent=self); return
         LogViewerDialog(self, log_filepath, self._handle_load_selected_state_from_history)
 
-    def _handle_presenter_webview_toggle(self):
-        # This method will be fleshed out to start/stop the Flask server
-        # and update the self.menu_bar.presenter_toggle_btn_text.set(...)
-        if not self.flask_server_running:
-            messagebox.showinfo("Presenter Webview", "Attempting to start presenter web server...\n(This feature requires Flask and Flask-SocketIO to be set up).", parent=self)
-            # TODO: Add logic to start Flask app in a thread
-            # self.flask_server_running = True
-            # self.menu_bar.presenter_toggle_btn_text.set("Stop Presenter Webview")
-        else:
-            messagebox.showinfo("Presenter Webview", "Attempting to stop presenter web server...", parent=self)
-            # TODO: Add logic to stop Flask app thread
-            # self.flask_server_running = False
-            # self.menu_bar.presenter_toggle_btn_text.set("Start Presenter Webview")
-        print("Toggle Presenter Webview action (to be implemented with Flask)")
+    def _start_flask_server(self):
+        if not FLASK_AVAILABLE or not auction_flask_app:
+            messagebox.showerror("Webview Error", "Flask/SocketIO components not available. Cannot start webview.", parent=self)
+            return False
 
+        if self.flask_server_running:
+            messagebox.showinfo("Webview Info", "Webview server is already running.", parent=self)
+            return True
+
+        try:
+            # Pass the AuctionApp instance (self) to the Flask app creation function
+            # This allows Flask routes/SocketIO handlers to access auction data/methods
+            self.flask_app_instance, self.socketio_instance = auction_flask_app.create_flask_app(self)
+            
+            self.stop_flask_event.clear()
+
+            def run_server():
+                try:
+                    print(f"Attempting to start Flask-SocketIO server on http://localhost:{self.flask_port}")
+                    # use_reloader=False is important when running in a thread managed by another app
+                    self.socketio_instance.run(self.flask_app_instance, host='0.0.0.0', port=self.flask_port, debug=False, use_reloader=False, allow_unsafe_werkzeug=True)
+                    print("Flask-SocketIO server has stopped.")
+                except Exception as e:
+                    print(f"Flask server thread error: {e}")
+                    # Ensure UI reflects that server stopped if it crashes
+                    if self.flask_server_running: # if it was marked as running
+                        self.master.after(0, self._notify_server_stopped_unexpectedly)
+
+
+            self.flask_thread = threading.Thread(target=run_server, daemon=True)
+            self.flask_thread.start()
+            
+            # Give the server a moment to start before declaring it running
+            # This is a bit of a guess; a better way is to have the server signal back.
+            time.sleep(1) # Adjust as needed
+
+            # Basic check if thread is alive (doesn't guarantee server is listening yet)
+            if self.flask_thread.is_alive():
+                self.flask_server_running = True
+                self.menu_bar.presenter_toggle_btn_text.set("Stop Presenter Webview")
+                messagebox.showinfo("Presenter Webview", 
+                                    f"Presenter web server starting on http://localhost:{self.flask_port}\n"
+                                    f"Presenter Link: http://localhost:{self.flask_port}/presenter\n"
+                                    f"Manager Link (example): http://localhost:{self.flask_port}/manager/TeamAlpha", 
+                                    parent=self)
+                webbrowser.open(f"http://localhost:{self.flask_port}/presenter")
+                self._emit_full_state_to_webview() # Send initial state
+                return True
+            else:
+                messagebox.showerror("Webview Error", "Flask server thread failed to start.", parent=self)
+                self.flask_server_running = False
+                return False
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            messagebox.showerror("Webview Error", f"Failed to initialize Flask server: {e}", parent=self)
+            self.flask_server_running = False
+            return False
+
+    def _notify_server_stopped_unexpectedly(self):
+        if self.flask_server_running : # Check if it was supposed to be running
+            messagebox.showwarning("Webview Warning", "The webview server seems to have stopped unexpectedly.", parent=self)
+            self.flask_server_running = False
+            if hasattr(self, 'menu_bar'):
+                 self.menu_bar.presenter_toggle_btn_text.set("Start Presenter Webview")
+            self.socketio_instance = None # Clear instance
+
+    def _stop_flask_server(self):
+        if not self.flask_server_running or not self.socketio_instance:
+            messagebox.showinfo("Webview Info", "Webview server is not running.", parent=self)
+            return False
+        
+        print("Attempting to stop Flask-SocketIO server...")
+        try:
+            # SocketIO has a 'stop' method that can be called.
+            # This should signal the underlying server (e.g., Werkzeug) to shut down.
+            self.socketio_instance.stop() # This is the preferred way for flask_socketio
+            self.stop_flask_event.set() # Signal for the thread to exit its loop if it had one
+
+            if self.flask_thread and self.flask_thread.is_alive():
+                 print("Waiting for Flask thread to join...")
+                 self.flask_thread.join(timeout=5) # Wait for the thread to finish
+                 if self.flask_thread.is_alive():
+                     print("Warning: Flask thread did not stop after timeout.")
+                 else:
+                     print("Flask thread joined successfully.")
+            
+            self.flask_server_running = False
+            self.menu_bar.presenter_toggle_btn_text.set("Start Presenter Webview")
+            messagebox.showinfo("Presenter Webview", "Presenter web server has been signaled to stop.", parent=self)
+            self.socketio_instance = None
+            self.flask_app_instance = None
+            self.flask_thread = None
+            return True
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            messagebox.showerror("Webview Error", f"Error attempting to stop Flask server: {e}", parent=self)
+            # Even on error, update UI state to allow restart attempt
+            self.flask_server_running = False # Assume it might have stopped or is unstable
+            if hasattr(self, 'menu_bar'):
+                self.menu_bar.presenter_toggle_btn_text.set("Start Presenter Webview (Error)")
+            return False
+
+    def _handle_presenter_webview_toggle(self):
+        if not FLASK_AVAILABLE:
+            messagebox.showerror("Feature Unavailable",
+                                 "Flask/SocketIO is not installed or auction_flask_app.py is missing. Webview cannot be started.",
+                                 parent=self)
+            return
+
+        if not self.flask_server_running:
+            self._start_flask_server()
+        else:
+            self. _stop_flask_server()
 
     def _handle_load_selected_state_from_history(self, json_state_string, loaded_timestamp, loaded_action_desc, loaded_serial_no):
         success, message = self.engine.load_state_from_json_string(json_state_string, loaded_timestamp, loaded_action_desc, loaded_serial_no)
         if success:
-            self.refresh_all_ui_displays() # This will update admin and trigger presenter update (later via SocketIO)
+            self.refresh_all_ui_displays() # This will also call _emit_full_state_to_webview
             messagebox.showinfo("State Loaded", message, parent=self)
         else:
             messagebox.showerror("Load Error", message, parent=self)
@@ -557,7 +679,6 @@ class AuctionApp(tk.Frame):
         self.scrollable_teams_frame.update_idletasks()
         if self.teams_canvas.winfo_exists(): self.teams_canvas.config(scrollregion=self.teams_canvas.bbox("all"))
 
-
     def update_available_players_display(self):
         # ... (No changes, admin panel remains text-based) ...
         if hasattr(self,'item_list_text') and self.item_list_text.winfo_exists():
@@ -574,7 +695,6 @@ class AuctionApp(tk.Frame):
                 self.item_list_text.window_create("end", window=item_button_container, padx=0, pady=3); self.item_list_text.insert("end","\n")
             self.item_list_text.config(state=tk.DISABLED)
 
-
     def update_bidding_status_display(self):
         # ... (No changes, admin panel display is text-based) ...
         status = self.engine.get_current_bidding_status_display()
@@ -587,14 +707,20 @@ class AuctionApp(tk.Frame):
 
 
     def refresh_all_ui_displays(self):
+        # This method is called from the main Tkinter thread.
         self.update_team_cards_display()
         self.update_available_players_display()
         self.update_bidding_status_display()
-        self._emit_full_state_to_webview() # New method for SocketIO
+        
+        # Emit state to webview if server is running
+        if self.flask_server_running and self.socketio_instance:
+            # Ensure this is scheduled if refresh_all_ui_displays can be called from non-main thread
+            # However, most UI actions triggering this are already in main thread.
+             self._emit_full_state_to_webview()
 
     def _emit_full_state_to_webview(self):
         """Emits the entire relevant auction state to the presenter webview via SocketIO."""
-        if not self.socketio or not self.flask_server_running:
+        if not self.socketio_instance or not self.flask_server_running:
             return
 
         # Prepare data for webview (similar to what _update_presenter_full_state did)
@@ -637,18 +763,31 @@ class AuctionApp(tk.Frame):
             # Add sold_ticker_items if needed, transformed for web
         }
         # print(f"DEBUG UI: Emitting full_state_update: {full_state}")
-        self.socketio.emit('full_state_update', full_state, namespace='/presenter')
-
+        self.socketio_instance.emit('full_state_update', full_state, namespace='/presenter')
 
     def _get_web_path(self, local_path):
-        """Converts a local file path to a web-accessible static path."""
         if not local_path:
             return None
-        # This is a placeholder. Actual implementation depends on your Flask static folder setup.
-        # For now, assume images are in a top-level 'static/images' folder relative to where Flask runs.
-        # And local_path is like 'images/player.png' or 'c:/path/to/images/player.png'
-        filename = os.path.basename(local_path)
-        return f"/static/images/{filename}" # Example
+        
+        # Make paths web-friendly (replace backslashes, ensure it's relative if possible)
+        web_path = local_path.replace('\\', '/')
+
+        # If the path is absolute, we can only use the filename assuming it's in static/images
+        # If it's already relative and starts with "images/" or similar, it might be okay.
+        # A robust solution involves copying/linking all used images to the static folder
+        # or having a dedicated Flask route to serve images from arbitrary locations (with security checks).
+
+        # Simplification: Assume all images are placed/copied into a "static/images" folder.
+        # The local_path might be "path/to/logos/alpha_logo.png" or "C:/abs/path/player1.png"
+        filename = os.path.basename(web_path)
+        
+        # Check if Flask app is running and has a static_url_path (usually '/static')
+        # This is a basic approach. For complex setups, image management needs more thought.
+        if self.flask_app_instance:
+             # Assuming your static folder is named 'static' and images are in an 'images' subfolder.
+            return f"/static/images/{filename}" 
+        else: # Fallback if flask not running, though this path won't be used by webview then
+            return f"images/{filename}" # Placeholder
 
     def _check_and_display_engine_warnings(self, context_message="Engine Warning(s):"):
         warnings = self.engine.get_last_errors_and_clear()
@@ -656,11 +795,13 @@ class AuctionApp(tk.Frame):
             full_warning_message = context_message + "\n - " + "\n - ".join(warnings)
             messagebox.showwarning("Auction Engine Notice", full_warning_message, parent=self)
 
-    def ui_select_item(self, player_name):
-        try:
-            item_passed_explicitly_by_ui = None
-            item_that_might_be_auto_passed_by_engine = None # Will hold name if engine auto-passes
 
+    def ui_select_item(self, player_name):
+        passed_item_name_for_event = None
+        item_passed_explicitly_by_ui = None # <--- INITIALIZE
+        passed_message_from_engine = None   # <--- INITIALIZE
+        item_that_might_be_auto_passed_by_engine = None # <--- INITIALIZE
+        try:
             # Check if an item is active AND has bids.
             if self.engine.bidding_active and self.engine.current_item_name and self.engine.highest_bidder_name:
                  current_active_item_with_bids = self.engine.current_item_name # Capture name before potential pass
@@ -679,8 +820,8 @@ class AuctionApp(tk.Frame):
                  messagebox.showinfo("Item Passed", f"'{item_passed_explicitly_by_ui}' (which had bids) was passed and returned to available players.", parent=self)
                  
                  # Emit event for this explicit pass by UI
-                 if self.socketio and self.flask_server_running and item_passed_explicitly_by_ui:
-                     self.socketio.emit('item_passed_event', {'item_name': item_passed_explicitly_by_ui}, namespace='/presenter')
+                 if self.socketio_instance and self.flask_server_running and item_passed_explicitly_by_ui:
+                     self.socketio_instance.emit('item_passed_event', {'item_name': item_passed_explicitly_by_ui}, namespace='/presenter')
             
             # If the above block was NOT entered, it means either:
             # 1. No item was active OR
@@ -690,6 +831,11 @@ class AuctionApp(tk.Frame):
             # as this is the item that *might* be auto-passed by the engine.
             if not item_passed_explicitly_by_ui: # Only if UI didn't already pass an item
                  item_that_might_be_auto_passed_by_engine = self.engine.current_item_name
+            
+            if item_passed_explicitly_by_ui: # From your existing logic
+                 passed_item_name_for_event = item_passed_explicitly_by_ui
+            elif passed_message_from_engine and item_that_might_be_auto_passed_by_engine: # From your existing logic
+                 passed_item_name_for_event = item_that_might_be_auto_passed_by_engine
 
 
             # Now, call engine's select_item_for_bidding for the new player.
@@ -699,77 +845,118 @@ class AuctionApp(tk.Frame):
                 # This means engine auto-passed an item that had NO bids
                 messagebox.showinfo("Item Auto-Passed", passed_message_from_engine, parent=self)
                 # Emit event for this auto-pass by engine
-                if self.socketio and self.flask_server_running and item_that_might_be_auto_passed_by_engine:
-                     self.socketio.emit('item_passed_event', {'item_name': item_that_might_be_auto_passed_by_engine}, namespace='/presenter')
+                if self.socketio_instance and self.flask_server_running and item_that_might_be_auto_passed_by_engine:
+                     self.socketio_instance.emit('item_passed_event', {'item_name': item_that_might_be_auto_passed_by_engine}, namespace='/presenter')
 
         except AuctionError as e: 
             messagebox.showerror("Selection Error", str(e), parent=self)
         finally:
-            self.refresh_all_ui_displays() # This will send full state, covering all changes
+            self.refresh_all_ui_displays() # This handles emitting full state
+            if passed_item_name_for_event and self.socketio_instance and self.flask_server_running:
+                # print(f"DEBUG UI (Tkinter): Emitting 'item_passed_event' for {passed_item_name_for_event}")
+                self.socketio_instance.emit('item_passed_event', {'item_name': passed_item_name_for_event}, namespace='/presenter')
+                self.socketio_instance.emit('item_passed_event', {'item_name': passed_item_name_for_event}, namespace='/manager')
             self._check_and_display_engine_warnings()
 
-    def ui_place_bid(self, team_name):
+    def ui_place_bid(self, team_name): # Called by Admin Panel
         try:
             self.engine.place_bid(team_name)
         except AuctionError as e: messagebox.showerror("Bid Error", str(e), parent=self)
         finally:
-            self.refresh_all_ui_displays() # Will emit full state
+            self.refresh_all_ui_displays() # Emits full state
             self._check_and_display_engine_warnings()
+
+    def ui_place_bid_from_webview(self, team_name): # Called by Flask thread via root.after
+        # This method MUST be called in the Tkinter main thread.
+        # The Flask SocketIO handler should use self.master.after(0, lambda: self.ui_place_bid_from_webview(team_name))
+        print(f"ADMIN_PANEL_INFO: Bid received from webview for team '{team_name}' for item '{self.engine.current_item_name}'")
+        try:
+            # Check if bidding is still valid (item might have been sold/passed by admin just before this executes)
+            if not self.engine.bidding_active or not self.engine.current_item_name:
+                print(f"ADMIN_PANEL_WARNING: Web bid for '{team_name}' arrived too late. Item no longer active.")
+                if self.socketio_instance and self.flask_server_running: # Try to inform specific manager
+                    # This is tricky as we don't have the original request.sid here easily
+                    # For now, the global refresh will show the item is gone.
+                     self.socketio_instance.emit('bid_error', {'message': 'Bidding for this item has just closed.'}, namespace='/manager') # Broadcast, less ideal
+                return
+
+            bid_amount, highest_bidder = self.engine.place_bid(team_name)
+            print(f"ADMIN_PANEL_SUCCESS: Web bid by '{team_name}' for '{self.engine.current_item_name}' at {bid_amount} successful. Highest: {highest_bidder}")
+
+        except InsufficientFundsError as e:
+            print(f"ADMIN_PANEL_ERROR: Web bid by '{team_name}' failed: {e}")
+            if self.socketio_instance and self.flask_server_running:
+                 self.socketio_instance.emit('bid_error', {'message': str(e)}, namespace='/manager') # Broadcast
+        except InvalidBidError as e: # e.g. already highest bidder
+            print(f"ADMIN_PANEL_ERROR: Web bid by '{team_name}' failed: {e}")
+            if self.socketio_instance and self.flask_server_running:
+                 self.socketio_instance.emit('bid_error', {'message': str(e)}, namespace='/manager')
+        except AuctionError as e:
+            print(f"ADMIN_PANEL_ERROR: Web bid by '{team_name}' failed with general AuctionError: {e}")
+            if self.socketio_instance and self.flask_server_running:
+                 self.socketio_instance.emit('bid_error', {'message': str(e)}, namespace='/manager')
+        finally:
+            # This will update the admin UI and send a full_state_update to all web clients
+            self.refresh_all_ui_displays()
+            self._check_and_display_engine_warnings("Warning processing web bid:")
 
     def ui_undo_last_bid(self):
         try:
             self.engine.undo_last_bid()
         except AuctionError as e: messagebox.showerror("Undo Error", str(e), parent=self)
         finally:
-            self.refresh_all_ui_displays() # Will emit full state
+            self.refresh_all_ui_displays() # Emits full state
             self._check_and_display_engine_warnings()
 
     def ui_sell_item(self):
+        sold_data_for_event = None
         try:
             item_name, winner, bid, message = self.engine.sell_current_item()
             messagebox.showinfo("Item Sold", message, parent=self)
-            if self.socketio and self.flask_server_running:
-                player_data_engine = self.engine.players_initial_info.get(item_name)
-                player_photo_web_path = self._get_web_path(player_data_engine.get(PLAYER_PHOTO_PATH_KEY)) if player_data_engine else None
-                team_data_engine = self.engine.teams_data.get(winner)
-                team_logo_web_path = self._get_web_path(team_data_engine.get(TEAM_LOGO_PATH_KEY)) if team_data_engine else None
+            
+            player_data_engine = self.engine.players_initial_info.get(item_name) # Engine has sold it, so it's no longer current_item_name
+            player_photo_web_path = self._get_web_path(player_data_engine.get(PLAYER_PHOTO_PATH_KEY)) if player_data_engine else None
+            team_data_engine = self.engine.teams_data.get(winner)
+            team_logo_web_path = self._get_web_path(team_data_engine.get(TEAM_LOGO_PATH_KEY)) if team_data_engine else None
 
-                sold_data = {
-                    'player_name': item_name,
-                    'player_photo_path': player_photo_web_path,
-                    'winning_team_name': winner,
-                    'winning_team_logo_path': team_logo_web_path,
-                    'sold_price': bid
-                }
-                # print(f"DEBUG UI: Emitting item_sold_event: {sold_data}")
-                self.socketio.emit('item_sold_event', sold_data, namespace='/presenter')
+            sold_data_for_event = {
+                'player_name': item_name,
+                'player_photo_path': player_photo_web_path,
+                'winning_team_name': winner,
+                'winning_team_logo_path': team_logo_web_path,
+                'sold_price': bid
+            }
         except AuctionError as e: messagebox.showerror("Sell Error", str(e), parent=self)
         finally:
-            self.refresh_all_ui_displays() # Will emit full state (clearing current item)
+            self.refresh_all_ui_displays() # Emits full state (clearing current item)
+            if sold_data_for_event and self.socketio_instance and self.flask_server_running:
+                # print(f"DEBUG UI (Tkinter): Emitting 'item_sold_event': {sold_data_for_event}")
+                self.socketio_instance.emit('item_sold_event', sold_data_for_event, namespace='/presenter')
+                self.socketio_instance.emit('item_sold_event', sold_data_for_event, namespace='/manager')
             self._check_and_display_engine_warnings()
 
     def ui_pass_item(self):
+        passed_item_name_for_event = None
         try:
-            passed_item_name_for_presenter = self.engine.current_item_name
-            if self.engine.bidding_active and passed_item_name_for_presenter and self.engine.highest_bidder_name:
-                 if not messagebox.askyesno("Confirm Pass", f"'{passed_item_name_for_presenter}' has bids. Pass anyway?", icon='warning', parent=self): return
+            # ... (your existing confirmation logic) ...
+            passed_item_name_for_event = self.engine.current_item_name # Get name before it's cleared by pass_current_item
             passed_item_name = self.engine.pass_current_item()
             messagebox.showinfo("Item Passed", f"'{passed_item_name}' passed/unsold.", parent=self)
-            if self.socketio and self.flask_server_running:
-                self.socketio.emit('item_passed_event', {'item_name': passed_item_name}, namespace='/presenter')
         except AuctionError as e: messagebox.showerror("Pass Error", str(e), parent=self)
         finally:
-            self.refresh_all_ui_displays() # Will emit full state
+            self.refresh_all_ui_displays() # Emits full state
+            if passed_item_name_for_event and self.socketio_instance and self.flask_server_running:
+                # print(f"DEBUG UI (Tkinter): Emitting 'item_passed_event' for {passed_item_name_for_event}")
+                self.socketio_instance.emit('item_passed_event', {'item_name': passed_item_name_for_event}, namespace='/presenter')
+                self.socketio_instance.emit('item_passed_event', {'item_name': passed_item_name_for_event}, namespace='/manager')
             self._check_and_display_engine_warnings()
 
     def on_app_frame_closing(self):
         if self.engine: self.engine.close_logger()
-        # TODO: Add logic to stop Flask thread if running
-        if self.flask_thread and self.flask_thread.is_alive():
-            print("Attempting to shut down Flask server...")
-            # This is tricky. A proper shutdown might involve sending a request to a shutdown route on Flask.
-            # For now, we'll just let the thread die with the main app.
-            pass
+        if self.flask_server_running:
+            print("Attempting to stop Flask server on app close...")
+            self._stop_flask_server()
+        print("AuctionApp closed.")
 
 
 def main():

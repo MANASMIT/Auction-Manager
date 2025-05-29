@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ my_team_name }} - Manager View | {{ auction_name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+</head>
+<body>
+    <header>
+        <h1>{{ auction_name }} - Manager: {{ my_team_name }}</h1>
+    </header>
+
+    <main>
+        <section id="my-team-status" class="card">
+            <h2>My Team: {{ my_team_name }}</h2>
+            <p>Funds: <span id="my-team-funds">Loading...</span></p>
+            <div id="my-team-logo-container">
+                <img id="my-team-logo" src="#" alt="{{ my_team_name }} Logo" style="display:none;">
+            </div>
+            <h3>My Roster:</h3>
+            <ul id="my-team-roster">
+                <!-- My roster items -->
+            </ul>
+        </section>
+
+        <section id="current-item-section">
+            <h2>Current Item for Bidding</h2>
+            <div id="item-details" class="card">
+                <p id="no-item-message">No item selected for bidding.</p>
+                <img id="item-photo" src="#" alt="Player Photo" style="display:none;">
+                <h3 id="item-name"></h3>
+                <p>Base Bid: <span id="item-base-bid"></span></p>
+                <button id="bid-button" disabled>Place Bid for {{ my_team_name }}</button>
+                <p id="bid-feedback" class="feedback-message"></p>
+            </div>
+        </section>
+
+        <section id="bidding-status-section">
+            <h2>Bidding Status</h2>
+            <div id="bid-info" class="card">
+                <p>Current Bid: <span id="current-bid-amount">₹0</span></p>
+                <p>Highest Bidder: <span id="highest-bidder-name">--</span></p>
+                <img id="bidder-logo" src="#" alt="Bidder Logo" style="display:none;">
+            </div>
+        </section>
+        
+        <section id="other-teams-section">
+            <h2>View Other Teams</h2>
+            <select id="other-teams-dropdown">
+                <option value="">-- Select a team --</option>
+                {% for team in all_team_names %}
+                    {% if team != my_team_name %}
+                        <option value="{{ team }}">{{ team }}</option>
+                    {% endif %}
+                {% endfor %}
+            </select>
+            <div id="other-team-info" class="card" style="display:none;">
+                <h3 id="other-team-name-display"></h3>
+                <p>Funds: <span id="other-team-funds"></span></p>
+                <img id="other-team-logo-display" src="#" alt="Team Logo" style="display:none;">
+                <h4>Roster:</h4>
+                <ul id="other-team-roster-display"></ul>
+            </div>
+        </section>
+
+        <section id="sold-ticker-section">
+            <h2>Recently Sold</h2>
+            <div id="sold-ticker" class="card">
+                <ul>
+                    <!-- Sold items will be added here by JS -->
+                </ul>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>Team Manager View for {{ my_team_name }}</p>
+    </footer>
+    <script>
+        // Pass the team name to JavaScript
+        const MY_TEAM_NAME = "{{ my_team_name }}";
+    </script>
+    <script src="{{ url_for('static', filename='js/common.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/manager.js') }}"></script>
+</body>
+</html>

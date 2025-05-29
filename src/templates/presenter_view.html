@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auction Presenter: {{ auction_name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+</head>
+<body>
+    <header>
+        <h1>{{ auction_name }} - Live</h1>
+    </header>
+
+    <main>
+        <section id="current-item-section">
+            <h2>Current Item for Bidding</h2>
+            <div id="item-details" class="card">
+                <p id="no-item-message">No item selected for bidding.</p>
+                <img id="item-photo" src="#" alt="Player Photo" style="display:none;">
+                <h3 id="item-name"></h3>
+                <p>Base Bid: <span id="item-base-bid"></span></p>
+            </div>
+        </section>
+
+        <section id="bidding-status-section">
+            <h2>Bidding Status</h2>
+            <div id="bid-info" class="card">
+                <p>Current Bid: <span id="current-bid-amount">₹0</span></p>
+                <p>Highest Bidder: <span id="highest-bidder-name">--</span></p>
+                <img id="bidder-logo" src="#" alt="Bidder Logo" style="display:none;">
+            </div>
+        </section>
+
+        <section id="sold-ticker-section">
+            <h2>Recently Sold</h2>
+            <div id="sold-ticker" class="card">
+                <ul>
+                    <!-- Sold items will be added here by JS -->
+                </ul>
+            </div>
+        </section>
+        
+        <section id="teams-overview-section">
+            <h2>Teams Overview</h2>
+            <div id="teams-list" class="teams-container">
+                <!-- Team cards will be populated here by JS -->
+            </div>
+            <div id="team-roster-modal" class="modal">
+                <div class="modal-content">
+                    <span class="close-button">×</span>
+                    <h3 id="modal-team-name"></h3>
+                    <ul id="modal-team-roster-list"></ul>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>Auction Presenter View</p>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/common.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/presenter.js') }}"></script>
+</body>
+</html>
