@@ -15,6 +15,14 @@ from auction_engine import (
     PLAYER_PHOTO_PATH_KEY, TEAM_LOGO_PATH_KEY
 )
 
+# Removed PresenterWindow import as we are removing Tkinter presenter hooks
+# try:
+#     from presenter_view import PresenterWindow
+# except ImportError:
+#     PresenterWindow = None
+#     print("WARNING: presenter_view.py not found. Presenter mode will be unavailable.")
+
+
 # --- Constants --- (remain the same)
 LOG_SECTION_CONFIG = "[CONFIG]"
 LOG_SECTION_TEAMS_INITIAL = "[TEAMS_INITIAL]"
@@ -650,22 +658,54 @@ class AuctionApp(tk.Frame):
 
     def ui_select_item(self, player_name):
         try:
-            current_status = self.engine.get_current_bidding_status_display()
-            if current_status["bidding_active"] and self.engine.highest_bidder_name:
-                 if not messagebox.askyesno("Confirm Item Change", f"'{self.engine.current_item_name}' active with bids. Change? Current item passes.", icon='warning', parent=self): return
+            item_passed_explicitly_by_ui = None
+            item_that_might_be_auto_passed_by_engine = None # Will hold name if engine auto-passes
 
-            prev_item_name_for_presenter = self.engine.current_item_name
-            passed_message = self.engine.select_item_for_bidding(player_name)
+            # Check if an item is active AND has bids.
+            if self.engine.bidding_active and self.engine.current_item_name and self.engine.highest_bidder_name:
+                 current_active_item_with_bids = self.engine.current_item_name # Capture name before potential pass
+                 
+                 if not messagebox.askyesno("Confirm Item Change", 
+                                           f"'{current_active_item_with_bids}' is active with bids from '{self.engine.highest_bidder_name}'.\n\n"
+                                           f"Do you want to select '{player_name}' instead? \n"
+                                           f"If yes, '{current_active_item_with_bids}' will be PASSED (returned to available players).", 
+                                           icon='warning', parent=self):
+                    return # User cancelled
 
-            if passed_message:
-                messagebox.showinfo("Item Auto-Passed", passed_message, parent=self)
-                if self.socketio and self.flask_server_running:
-                    # Emit a specific event for item passed if desired, or rely on full state update
-                    self.socketio.emit('item_passed_event', {'item_name': prev_item_name_for_presenter}, namespace='/presenter')
+                 # If user confirmed, explicitly pass the current item with bids
+                 item_passed_explicitly_by_ui = self.engine.pass_current_item(
+                     reason_comment=f"'{current_active_item_with_bids}' passed (with bids) due to new selection of '{player_name}'."
+                 )
+                 messagebox.showinfo("Item Passed", f"'{item_passed_explicitly_by_ui}' (which had bids) was passed and returned to available players.", parent=self)
+                 
+                 # Emit event for this explicit pass by UI
+                 if self.socketio and self.flask_server_running and item_passed_explicitly_by_ui:
+                     self.socketio.emit('item_passed_event', {'item_name': item_passed_explicitly_by_ui}, namespace='/presenter')
+            
+            # If the above block was NOT entered, it means either:
+            # 1. No item was active OR
+            # 2. An item was active but had NO bids.
+            # In case 2, the engine's select_item_for_bidding will handle auto-passing it.
+            # We capture the name of the current item (if any) BEFORE calling select_item_for_bidding,
+            # as this is the item that *might* be auto-passed by the engine.
+            if not item_passed_explicitly_by_ui: # Only if UI didn't already pass an item
+                 item_that_might_be_auto_passed_by_engine = self.engine.current_item_name
 
-        except AuctionError as e: messagebox.showerror("Selection Error", str(e), parent=self)
+
+            # Now, call engine's select_item_for_bidding for the new player.
+            passed_message_from_engine = self.engine.select_item_for_bidding(player_name)
+
+            if passed_message_from_engine: 
+                # This means engine auto-passed an item that had NO bids
+                messagebox.showinfo("Item Auto-Passed", passed_message_from_engine, parent=self)
+                # Emit event for this auto-pass by engine
+                if self.socketio and self.flask_server_running and item_that_might_be_auto_passed_by_engine:
+                     self.socketio.emit('item_passed_event', {'item_name': item_that_might_be_auto_passed_by_engine}, namespace='/presenter')
+
+        except AuctionError as e: 
+            messagebox.showerror("Selection Error", str(e), parent=self)
         finally:
-            self.refresh_all_ui_displays() # Will emit full state
+            self.refresh_all_ui_displays() # This will send full state, covering all changes
             self._check_and_display_engine_warnings()
 
     def ui_place_bid(self, team_name):

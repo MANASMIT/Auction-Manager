@@ -484,20 +484,38 @@ class AuctionEngine:
 
     def select_item_for_bidding(self, player_name):
         if player_name not in self.players_available:
-            raise ItemNotSelectedError(f"Player '{player_name}' not available.")
+            # This case should ideally not be reached if UI filters correctly,
+            # or if an item is explicitly passed by UI before selecting a new one.
+            raise ItemNotSelectedError(f"Player '{player_name}' not available or already selected.")
+        
         passed_item_message = None
+        
+        # Auto-pass the *previous* item ONLY if it was active AND had NO bids.
+        # If it had bids, the UI is responsible for calling pass_current_item() explicitly 
+        # BEFORE calling this method.
         if self.bidding_active and self.current_item_name and not self.highest_bidder_name:
-            prev_item_name = self.current_item_name
-            self.log_auction_state(f"PASS_ITEM_AUTO: {prev_item_name}", f"'{prev_item_name}' passed (new selection).")
-            passed_item_message = f"Previous item '{prev_item_name}' was passed (no bids)."
+            prev_item_name_auto_passed = self.current_item_name
+            
+            # Add the auto-passed item back to available list
+            if prev_item_name_auto_passed and prev_item_name_auto_passed in self.players_initial_info:
+                self.players_available[prev_item_name_auto_passed] = self.players_initial_info[prev_item_name_auto_passed]["base_bid"]
+            
+            self.log_auction_state(f"PASS_ITEM_AUTO: {prev_item_name_auto_passed}", f"'{prev_item_name_auto_passed}' passed (new selection, no bids).")
+            passed_item_message = f"Previous item '{prev_item_name_auto_passed}' was passed (no bids)."
 
+        # --- Set up the new item ---
         self.current_item_name = player_name
         self.current_item_base_bid = self.players_initial_info[player_name]["base_bid"]
-        self.current_bid_amount = self.current_item_base_bid
-        self.highest_bidder_name = None
-        self.bid_history_for_current_item = [(None, self.current_bid_amount)]
+        self.current_bid_amount = self.current_item_base_bid # Reset bid amount to base for new item
+        self.highest_bidder_name = None # Reset highest bidder for new item
+        self.bid_history_for_current_item = [(None, self.current_bid_amount)] # Start history with base bid
         self.bidding_active = True
-        if player_name in self.players_available: del self.players_available[player_name]
+        
+        # Remove the NEWLY selected player from available list.
+        # This must happen AFTER any auto-pass logic for the previous item might have re-added it.
+        if player_name in self.players_available: 
+            del self.players_available[player_name]
+        
         self.log_auction_state(f"SELECT_ITEM: {player_name}", f"{player_name} selected for auction.")
         return passed_item_message
 
@@ -547,10 +565,19 @@ class AuctionEngine:
     def pass_current_item(self, reason_comment="Player passed/unsold by auctioneer."):
         if not self.bidding_active or not self.current_item_name: raise ItemNotSelectedError("No item active.")
         passed_item_name = self.current_item_name
+        
+        # Add the passed item back to available players
         if passed_item_name and passed_item_name in self.players_initial_info:
              self.players_available[passed_item_name] = self.players_initial_info[passed_item_name]["base_bid"]
-        self.current_item_name = None; self.current_item_base_bid = 0; self.current_bid_amount = 0
-        self.highest_bidder_name = None; self.bid_history_for_current_item = []; self.bidding_active = False
+        
+        # Reset bidding state
+        self.current_item_name = None
+        self.current_item_base_bid = 0
+        self.current_bid_amount = 0
+        self.highest_bidder_name = None
+        self.bid_history_for_current_item = []
+        self.bidding_active = False
+        
         self.log_auction_state(f"PASS_ITEM: {passed_item_name}", reason_comment)
         return passed_item_name
 
