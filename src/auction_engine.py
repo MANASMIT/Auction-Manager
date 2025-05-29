@@ -19,6 +19,10 @@ CSV_DELIMITER = ','
 LOG_SECTION_PLAYER_ROLES = "[PLAYER_ROLES]" # Actual section format for future
 LOG_SECTION_ROSTER_RULES = "[ROSTER_RULES]" # Actual section format for future
 
+# Keys for CSV and internal data
+PLAYER_PHOTO_PATH_KEY = "Profile Photo Path"
+TEAM_LOGO_PATH_KEY = "Logo Path"
+
 class AuctionError(Exception):
     """Base class for auction-specific errors."""
     pass
@@ -45,8 +49,8 @@ class AuctionEngine:
     def __init__(self):
         # Core auction state
         self.auction_name = "Untitled Auction"
-        self.teams_data = {}  # {team_name: {"money": int, "inventory": {player_name: bid_amount}, "id": team_id}}
-        self.players_initial_info = {}  # {player_name: {"base_bid": int, "id": player_id}}
+        self.teams_data = {}  # {team_name: {"money": int, "inventory": {player_name: bid_amount}, "id": team_id, "logo_path": str}}
+        self.players_initial_info = {}  # {player_name: {"base_bid": int, "id": player_id, "photo_path": str}}
         self.players_available = {}  # {player_name: base_bid} (subset of players_initial_info)
 
         # Bidding state
@@ -110,7 +114,7 @@ class AuctionEngine:
         return errors
 
     def setup_new_auction(self, auction_name_from_setup, teams_list_dicts, players_list_dicts):
-        self._clear_state() # Also resets bid_increment_rules to default
+        self._clear_state()
         self.auction_name = auction_name_from_setup
         
         safe_name = re.sub(r'[^\w\s_.-]', '', self.auction_name).strip().replace(' ', '_')
@@ -121,33 +125,34 @@ class AuctionEngine:
         for i, team_dict in enumerate(teams_list_dicts):
             name = team_dict["Team name"]
             money = int(team_dict["Team starting money"])
+            logo_path = team_dict.get(TEAM_LOGO_PATH_KEY, None) # Get logo path, default to None
             team_id = f"T{i+1}"
             if not name.strip():
                 raise InitializationError(f"Team name cannot be empty (from input data for team {i+1}).")
-            self.teams_data[name] = {"money": money, "inventory": {}, "id": team_id}
+            self.teams_data[name] = {"money": money, "inventory": {}, "id": team_id, "logo_path": logo_path}
             self.team_name_to_id[name] = team_id
             self.team_id_to_name[team_id] = name
 
         for i, player_dict in enumerate(players_list_dicts):
             name = player_dict["Player name"]
             base_bid = int(player_dict["Bid value"])
+            photo_path = player_dict.get(PLAYER_PHOTO_PATH_KEY, None) # Get photo path, default to None
             player_id = f"P{101+i}"
             if not name.strip():
                 raise InitializationError(f"Player name cannot be empty (from input data for player {i+1}).")
-            self.players_initial_info[name] = {"base_bid": base_bid, "id": player_id}
+            self.players_initial_info[name] = {"base_bid": base_bid, "id": player_id, "photo_path": photo_path}
             self.players_available[name] = base_bid
             self.player_name_to_id[name] = player_id
             self.player_id_to_name[player_id] = name
-        
+
         if not self.teams_data:
             raise InitializationError("No teams provided for the new auction.")
         if not self.players_initial_info:
             raise InitializationError("No players provided for the new auction.")
 
-        # Note: set_bid_increment_rules() will be called after this if custom rules from CSV
-        self._init_logger_for_new_auction() # This will log the current bid_increment_rules (defaults at this point)
+        self._init_logger_for_new_auction()
         self.log_auction_state("INITIAL_SETUP", "Initial auction state established.")
-
+        
     def set_bid_increment_rules(self, rules_list_of_tuples):
         """Sets custom bid increment rules, typically from CSV. Overwrites defaults."""
         if rules_list_of_tuples and isinstance(rules_list_of_tuples, list):
@@ -276,31 +281,36 @@ class AuctionEngine:
             elif current_section == LOG_SECTION_TEAMS_INITIAL: # Simplified, assuming CSV from engine
                 if line_cont.startswith('#'): continue 
                 try:
-                    if len(row) >= 3:
+                    # Expecting: TeamName, TeamID, StartingMoney, LogoPath (optional)
+                    if len(row) >= 3: # Min 3 columns
                         name, team_id, money_str = row[0].strip(), row[1].strip(), row[2].strip()
+                        logo_path = row[3].strip() if len(row) >= 4 else None # Get logo path if present
                         if not name: self._add_error(f"LogParse (Teams L{row_num+1}): Empty name. Skip: {row}"); continue
                         if not team_id: self._add_error(f"LogParse (Teams L{row_num+1}): Empty ID for '{name}'. Skip: {row}"); continue
-                        self.teams_data[name] = {"money": int(money_str), "inventory": {}, "id": team_id}
+                        self.teams_data[name] = {"money": int(money_str), "inventory": {}, "id": team_id, "logo_path": logo_path}
                         self.team_name_to_id[name] = team_id; self.team_id_to_name[team_id] = name
                         initial_teams_loaded = True
                     else: self._add_error(f"LogParse (Teams L{row_num+1}): Malformed. Skip: {row}")
                 except (ValueError, IndexError) as e: self._add_error(f"LogParse (Teams L{row_num+1}): Error {e}. Skip: {row}")
 
-            elif current_section == LOG_SECTION_PLAYERS_INITIAL: # Simplified
-                if line_cont.startswith('#'): continue 
+            elif current_section == LOG_SECTION_PLAYERS_INITIAL:
+                if line_cont.startswith('#'): continue
                 try:
-                    if len(row) >= 3:
+                    # Expecting: PlayerName, PlayerID, BaseBid, ProfilePhotoPath (optional)
+                    if len(row) >= 3: # Min 3 columns
                         name, player_id, bid_str = row[0].strip(), row[1].strip(), row[2].strip()
+                        photo_path = row[3].strip() if len(row) >= 4 else None # Get photo path if present
                         if not name: self._add_error(f"LogParse (Players L{row_num+1}): Empty name. Skip: {row}"); continue
                         if not player_id: self._add_error(f"LogParse (Players L{row_num+1}): Empty ID '{name}'. Skip: {row}"); continue
                         base_bid = int(bid_str)
-                        self.players_initial_info[name] = {"base_bid": base_bid, "id": player_id}
+                        self.players_initial_info[name] = {"base_bid": base_bid, "id": player_id, "photo_path": photo_path}
                         self.player_name_to_id[name] = player_id; self.player_id_to_name[player_id] = name
                         initial_players_loaded = True
                     else: self._add_error(f"LogParse (Players L{row_num+1}): Malformed. Skip: {row}")
                 except (ValueError, IndexError) as e: self._add_error(f"LogParse (Players L{row_num+1}): Error {e}. Skip: {row}")
         
         if temp_bid_rules_from_log:
+            # ... (bid rules loading same)
             self.bid_increment_rules = temp_bid_rules_from_log
             self.bid_increment_rules.sort(key=lambda x: x[0], reverse=True)
         else: # No rules in log, ensure defaults are set and sorted
@@ -399,13 +409,21 @@ class AuctionEngine:
                 f.write(f"#BidIncrementRules{CSV_DELIMITER}{json.dumps(self.bid_increment_rules)}\n\n") 
                 
                 f.write(f"{LOG_SECTION_TEAMS_INITIAL}\n")
-                team_writer = csv.writer(f); team_writer.writerow(["#TeamName", "TeamID", "StartingMoney"])
-                for name, data in self.teams_data.items(): team_writer.writerow([name, data["id"], data["money"]])
-                
+                team_writer = csv.writer(f)
+                # Add Logo Path to header
+                team_writer.writerow(["#TeamName", "TeamID", "StartingMoney", TEAM_LOGO_PATH_KEY])
+                for name, data in self.teams_data.items():
+                    # Add logo_path to row, ensure it's an empty string if None for CSV
+                    team_writer.writerow([name, data["id"], data["money"], data.get("logo_path", "")])
+
                 f.write("\n"); f.write(f"{LOG_SECTION_PLAYERS_INITIAL}\n")
-                player_writer = csv.writer(f); player_writer.writerow(["#PlayerName", "PlayerID", "BaseBid"])
-                for name, data in self.players_initial_info.items(): player_writer.writerow([name, data["id"], data["base_bid"]])
-                
+                player_writer = csv.writer(f)
+                # Add Profile Photo Path to header
+                player_writer.writerow(["#PlayerName", "PlayerID", "BaseBid", PLAYER_PHOTO_PATH_KEY])
+                for name, data in self.players_initial_info.items():
+                    # Add photo_path to row, ensure it's an empty string if None for CSV
+                    player_writer.writerow([name, data["id"], data["base_bid"], data.get("photo_path", "")])
+
                 f.write("\n"); f.write(f"{LOG_SECTION_AUCTION_STATES}\n")
                 event_writer = csv.writer(f); event_writer.writerow(["#Timestamp", "ActionDescription", "JSONStateSnapshot", "Comment"])
             self._reopen_logger_for_append()
@@ -560,30 +578,31 @@ class AuctionEngine:
 def generate_template_csv_content():
     """Generates the content for a template CSV file that works directly
     with the current FileSelectPage parser."""
-    # Using constants for section names
     template_str = f"""{LOG_SECTION_CONFIG}
 {LOG_KEY_AUCTION_NAME},My New Auction
 # You can add other specific configurations here if the engine supports them.
 # Each config should be on a new line: Key{CSV_DELIMITER}Value
 
 {LOG_SECTION_TEAMS_INITIAL}
-Team name,Team starting money
-# ^ This line above is the REQUIRED header for the all sections. Do not change its format.
+Team name,Team starting money,{TEAM_LOGO_PATH_KEY}
+# ^ This line above is the REQUIRED header for all the sections. Do not change its format.
 # Add your team data below, one team per line:
-Team Alpha,5000
-Team Bravo,4800
-Team Charlie,5200
+# Logo paths can be absolute or relative to the CSV file's location.
+Team Alpha,5000,path/to/logos/alpha_logo.png
+Team Bravo,4800,path/to/logos/bravo_logo.jpg
+Team Charlie,5200,C:/absolute/path/to/charlie.gif
 
 {LOG_SECTION_PLAYERS_INITIAL}
-Player name,Bid value
-# ^ This line above is the REQUIRED header for the all sections. Do not change its format.
+Player name,Bid value,{PLAYER_PHOTO_PATH_KEY}
+# ^ This line above is the REQUIRED header for all the sections. Do not change its format.
 # Add your player data below, one player per line:
-Player One,100
-Player Two,80
-Player Three (WK),75
-Player Four (BAT),120
-Player Five (BOWL),90
-Player Six (ALL),110
+# Profile photo paths can be absolute or relative.
+Player One,100,path/to/photos/player1.png
+Player Two,80,
+Player Three (WK),75,path/to/photos/player3_wk.png
+Player Four (BAT),120,path/to/photos/player4.jpeg
+Player Five (BOWL),90,images/player5_bowl.png
+Player Six (ALL),110,
 
 {LOG_SECTION_BID_INCREMENT_RULES}
 # This section is optional. If omitted, or if all rules are commented out,
