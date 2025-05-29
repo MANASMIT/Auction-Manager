@@ -101,7 +101,7 @@ def create_flask_app(auction_app_ref):
         for team_name, data in engine_teams.items():
             teams_status[team_name] = {
                 "money": data["money"],
-                "logo_path": tk_auction_app_instance._get_web_path(data.get("logo_path")),
+                "logo_path": tk_auction_app_instance._get_web_path(team_name, is_logo=True),
                 "inventory": { 
                     p_name: p_price 
                     for p_name, p_price in data.get("inventory", {}).items()
@@ -121,7 +121,7 @@ def create_flask_app(auction_app_ref):
         return jsonify({
             "name": player_name,
             "base_bid": player_info.get("base_bid"),
-            "photo_path": tk_auction_app_instance._get_web_path(player_info.get("photo_path"))
+            "photo_path": tk_auction_app_instance._get_web_path(player_name, is_logo=False)
         })
 
     # --- SocketIO Event Handlers ---

@@ -934,19 +934,20 @@ class AuctionApp(tk.Frame):
         next_potential_bid_calculated = None # Use a temporary variable for clarity
 
         if self.engine.bidding_active and self.engine.current_item_name:
-            player_data_engine = self.engine.players_initial_info.get(self.engine.current_item_name)
-            player_photo_web_path = self._get_web_path(player_data_engine.get(PLAYER_PHOTO_PATH_KEY)) if player_data_engine else None
-            
+            # Get the raw player name for the current item
+            raw_current_player_name = self.engine.current_item_name 
+            player_photo_web_path = self._get_web_path(raw_current_player_name, is_logo=False)
+
             current_item_data = {
                 'name': self.engine.current_item_name,
                 'photo_path': player_photo_web_path,
-                'base_bid': self.engine.current_item_base_bid
+                'base_bid': self.engine.current_item_base_bid,
             }
 
             # Populate existing bid_status fields
             if self.engine.highest_bidder_name:
-                team_data_engine = self.engine.teams_data.get(self.engine.highest_bidder_name)
-                bidder_logo_web_path = self._get_web_path(team_data_engine.get(TEAM_LOGO_PATH_KEY)) if team_data_engine else None
+                raw_highest_bidder_team_name = self.engine.highest_bidder_name
+                bidder_logo_web_path = self._get_web_path(raw_highest_bidder_team_name, is_logo=True)
                 bid_status_data['highest_bidder_name'] = self.engine.highest_bidder_name
                 bid_status_data['bidder_logo_path'] = bidder_logo_web_path
                 bid_status_data['bid_amount'] = self.engine.current_bid_amount
@@ -1297,6 +1298,96 @@ class AuctionApp(tk.Frame):
         
         print("AuctionApp closed. Destroying root window.")
         # The root.destroy() is called by the main() function's on_root_close
+
+    def _sanitize_for_filename(self, name, is_logo=False):
+        if not name:
+            return None
+        # Replace spaces and special characters (except parentheses for player names) with hyphens
+        # Keep parentheses for player names like "Player Three (WK)"
+        if not is_logo and '(' in name and ')' in name:
+            # For players like "Player Name (Role)" -> "Player-Name-(Role)"
+            sanitized_name = re.sub(r'[^\w\s\(\)-]', '', name) # Allow word chars, whitespace, (), -
+            sanitized_name = re.sub(r'\s+', '-', sanitized_name) # Replace spaces with hyphens
+        else:
+            # For team names or players without roles in parentheses
+            sanitized_name = re.sub(r'[^\w\s-]', '', name) # Allow word chars, whitespace, -
+            sanitized_name = re.sub(r'\s+', '-', sanitized_name) # Replace spaces with hyphens
+        
+        if is_logo:
+            return f"{sanitized_name}-logo" # e.g., Team-Alpha-logo
+        else:
+            return sanitized_name # e.g., Player-One or Player-Three-(WK)
+
+    def _find_image_filename_with_extension(self, base_filename_no_ext):
+        if not base_filename_no_ext:
+            return None
+        
+        # Define static images directory (assuming auction_flask_app.py is in the same dir as static/)
+        # This path resolution needs to be robust.
+        try:
+            # Get the directory of the currently running script (auction_UI.py)
+            # Then go up one level (if src/) or assume static is sibling
+            # For now, let's assume auction_flask_app can be imported and its __file__ used
+            if auction_flask_app and hasattr(auction_flask_app, '__file__'):
+                 static_images_dir = os.path.join(os.path.dirname(auction_flask_app.__file__), 'static', 'images')
+            else: # Fallback if auction_flask_app not available (e.g. FLASK_AVAILABLE is False)
+                # This path might not be correct if static isn't relative to auction_UI.py
+                # A more robust way would be to pass the static dir path during AuctionApp init
+                # or have a global config.
+                current_script_dir = os.path.dirname(__file__)
+                static_images_dir = os.path.join(current_script_dir, 'static', 'images')
+                if not os.path.isdir(static_images_dir): # Try going up one level if in 'src'
+                    static_images_dir = os.path.join(os.path.dirname(current_script_dir), 'static', 'images')
+
+        except NameError: # auction_flask_app might not be defined if import failed
+             current_script_dir = os.path.dirname(__file__)
+             static_images_dir = os.path.join(current_script_dir, 'static', 'images')
+             if not os.path.isdir(static_images_dir):
+                 static_images_dir = os.path.join(os.path.dirname(current_script_dir), 'static', 'images')
+
+
+        if not os.path.isdir(static_images_dir):
+            print(f"Warning: Static images directory not found at {static_images_dir} for image extension check.")
+            # Fallback: guess common extensions without checking existence
+            # This means the client might get a 404 if the guess is wrong.
+            possible_extensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp']
+            for ext in possible_extensions:
+                # Even without checking, we return the filename with a guessed extension.
+                # The _get_web_path will form the URL. Browser will report 404 if wrong.
+                # To be more robust, you'd ensure the image *must* exist or the CSV specifies the full filename.
+                # For now, just return the first common one for the URL construction.
+                return f"{base_filename_no_ext}{ext}" # e.g., Player-One.png
+            return None # Should not happen if possible_extensions is not empty
+
+        possible_extensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp']
+        for ext in possible_extensions:
+            potential_filename = f"{base_filename_no_ext}{ext}"
+            if os.path.exists(os.path.join(static_images_dir, potential_filename)):
+                return potential_filename # Found an existing image
+        
+        # print(f"Warning: No image found for base '{base_filename_no_ext}' with common extensions in {static_images_dir}")
+        return f"{base_filename_no_ext}.png" # Fallback to .png if nothing found, client will 404
+
+    def _get_web_path(self, entity_name, is_logo=False):
+        # entity_name is the raw player name (e.g., "Player One") or team name (e.g., "Team Alpha")
+        if not entity_name:
+            return None
+
+        base_filename_no_ext = self._sanitize_for_filename(entity_name, is_logo)
+        if not base_filename_no_ext:
+            return None
+            
+        actual_filename_with_ext = self._find_image_filename_with_extension(base_filename_no_ext)
+        if not actual_filename_with_ext:
+            # This fallback means we couldn't even guess an extension, or sanitize failed badly.
+            # Very unlikely if entity_name is valid.
+            print(f"Warning: Could not determine image filename for '{entity_name}'.")
+            return None
+
+        if self.flask_app_instance: # Check if Flask is running
+            return f"/static/images/{actual_filename_with_ext}"
+        else:
+            return None
 
 def main():
     # ... (No changes from your provided code, includes handle_resume_auction_logic) ...

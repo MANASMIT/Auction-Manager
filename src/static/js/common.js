@@ -10,17 +10,29 @@ function setText(elementId, text) {
     }
 }
 
+// static/js/common.js
+
 // Helper to update image source and visibility
 function setImage(elementId, src, altText = "Image") {
     const imgElement = document.getElementById(elementId);
     if (imgElement) {
-        if (src) {
+        if (src && typeof src === 'string' && src.trim() !== '' && src !== '#') { // Check if src is a non-empty string and not just '#'
             imgElement.src = src;
             imgElement.alt = altText;
-            imgElement.style.display = 'block';
+            imgElement.style.display = 'block'; // Or 'inline', 'inline-block' depending on your layout needs
+
+            // Optional: Add an error handler to hide if the valid-looking src still results in a 404
+            imgElement.onerror = function() {
+                console.warn(`Image failed to load: ${src}. Hiding element ${elementId}.`);
+                imgElement.style.display = 'none';
+                imgElement.onerror = null; // Prevent infinite loops if the placeholder also fails
+            };
         } else {
+            // If src is null, undefined, empty, or just '#', hide the image element
             imgElement.style.display = 'none';
-            imgElement.src = '#'; // Clear src
+            imgElement.src = '#'; // Clear src to avoid potential lingering request for old image
+            imgElement.alt = '';  // Clear alt text
+            imgElement.onerror = null; // Clear any previous error handler
         }
     } else {
         // console.warn(`Image element with ID '${elementId}' not found.`);
