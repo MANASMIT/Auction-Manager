@@ -686,13 +686,6 @@ class AuctionApp(tk.Frame):
             # Basic check if thread is alive (doesn't guarantee server is listening yet)
             if self.flask_thread.is_alive():
                 self.flask_server_running = True
-                self.menu_bar.presenter_toggle_btn_text.set("Stop Presenter Webview")
-                messagebox.showinfo("Presenter Webview", 
-                                    f"Presenter web server starting on http://localhost:{self.flask_port}\n"
-                                    f"Presenter Link: http://localhost:{self.flask_port}/presenter\n"
-                                    f"Manager Link (example): http://localhost:{self.flask_port}/manager/TeamAlpha", 
-                                    parent=self)
-                webbrowser.open(f"http://localhost:{self.flask_port}/presenter")
                 self._emit_full_state_to_webview() # Send initial state
                 return True
             else:
@@ -748,22 +741,32 @@ class AuctionApp(tk.Frame):
             messagebox.showerror("Feature Unavailable", "Flask/SocketIO not available.", parent=self)
             return
 
-        if not self.presenter_active:
+        if not self.presenter_active: # Trying to START presenter
             self.presenter_active = True
-            self.menu_bar.presenter_toggle_btn_text.set("Stop Presenter Webview")
-            if self._start_flask_server_if_needed():
-                 webbrowser.open(f"http://localhost:{self.flask_port}/presenter")
-                 self._emit_full_state_to_webview() # Send initial state
+            # Attempt to start server if needed (might already be running for manager)
+            server_started_or_was_running = self._start_flask_server_if_needed() 
+            
+            if server_started_or_was_running:
+                self.menu_bar.presenter_toggle_btn_text.set("Stop Presenter Webview")
+                messagebox.showinfo("Presenter Active",
+                                    f"Presenter view access enabled.\n"
+                                    f"Link: http://localhost:{self.flask_port}/presenter",
+                                    parent=self)
+                webbrowser.open(f"http://localhost:{self.flask_port}/presenter") # <--- OPEN BROWSER HERE
+                self._emit_full_state_to_webview() 
             else: # Server failed to start
-                self.presenter_active = False
+                self.presenter_active = False # Revert state
                 self.menu_bar.presenter_toggle_btn_text.set("Start Presenter Webview (Error)")
-        else:
+        else: # Trying to STOP presenter
             self.presenter_active = False
             self.menu_bar.presenter_toggle_btn_text.set("Start Presenter Webview")
-            self._stop_flask_server_if_idle()
-            # Optionally, could emit something to tell presenter clients to disconnect or show a message
+            # Don't show a messagebox here, just disable. Server stops if nothing else needs it.
+            print("Presenter view access disabled by admin.")
             if self.socketio_instance:
-                self.socketio_instance.emit('server_message', {'message': 'Presenter view has been disabled by admin.'}, namespace='/presenter')
+                self.socketio_instance.emit('server_message', 
+                                            {'message': 'Presenter view has been disabled by admin.'}, 
+                                            namespace='/presenter')
+            self._stop_flask_server_if_idle() # Stop server if manager also inactive
 
     def _generate_manager_tokens(self):
         self.team_manager_access_tokens.clear()
@@ -781,27 +784,37 @@ class AuctionApp(tk.Frame):
             messagebox.showerror("Feature Unavailable", "Flask/SocketIO not available.", parent=self)
             return
 
-        if not self.manager_access_enabled:
+        if not self.manager_access_enabled: # Trying to ENABLE manager access
             self.manager_access_enabled = True
-            self._generate_manager_tokens() # Generate tokens when enabling
-            self.menu_bar.manager_toggle_btn_text.set("Disable Manager Access")
-            self._start_flask_server_if_needed()
-            messagebox.showinfo("Manager Access", "Manager access enabled. Use 'Show Manager Links' to get URLs.", parent=self)
-            if self.manager_links_window_instance and self.manager_links_window_instance.winfo_exists(): # Update window if open
-                self.manager_links_window_instance.update_links(self.team_manager_access_tokens)
+            self._generate_manager_tokens()
+            # Attempt to start server if needed (might already be running for presenter)
+            server_started_or_was_running = self._start_flask_server_if_needed()
 
-        else:
+            if server_started_or_was_running:
+                self.menu_bar.manager_toggle_btn_text.set("Disable Manager Access")
+                messagebox.showinfo("Manager Access Enabled", 
+                                    "Manager access enabled. Use 'Show Manager Links' to get URLs.", 
+                                    parent=self)
+                # DO NOT open browser here automatically
+                if self.manager_links_window_instance and self.manager_links_window_instance.winfo_exists():
+                    self.manager_links_window_instance.update_links(self.team_manager_access_tokens)
+                self._emit_full_state_to_webview() # Ensure managers get current state
+            else: # Server failed to start
+                self.manager_access_enabled = False # Revert
+                self.menu_bar.manager_toggle_btn_text.set("Enable Manager Access (Error)")
+        else: # Trying to DISABLE manager access
             self.manager_access_enabled = False
-            # self.team_manager_access_tokens.clear() # Clear tokens when disabling for security
             self.menu_bar.manager_toggle_btn_text.set("Enable Manager Access")
-            self._stop_flask_server_if_idle()
-            messagebox.showinfo("Manager Access", "Manager access disabled.", parent=self)
-            if self.manager_links_window_instance and self.manager_links_window_instance.winfo_exists(): # Update window if open
-                self.manager_links_window_instance.update_links({}) # Show no links
-            # Emit to manager clients that access is revoked
+            # Don't show a messagebox here, just disable. Server stops if nothing else needs it.
+            print("Manager view access disabled by admin.")
+            if self.manager_links_window_instance and self.manager_links_window_instance.winfo_exists():
+                self.manager_links_window_instance.update_links({})
             if self.socketio_instance:
-                self.socketio_instance.emit('access_revoked', {'message': 'Manager access has been disabled by admin.'}, namespace='/manager')
-        
+                self.socketio_instance.emit('access_revoked', 
+                                            {'message': 'Manager access has been disabled by admin.'}, 
+                                            namespace='/manager')
+            self._stop_flask_server_if_idle() # Stop server if presenter also inactive
+
     def _show_manager_links_window(self):
         if not self.manager_access_enabled:
             messagebox.showwarning("Manager Access Disabled", 
@@ -980,7 +993,7 @@ class AuctionApp(tk.Frame):
                 self.socketio_instance.emit('full_state_update', full_state, namespace='/presenter')
             
             if self.manager_access_enabled:
-                print(f"PYTHON DEBUG (Manager Emit): bid_status being sent: {bid_status_data}") # KEEP THIS FOR VERIFICATION
+                # print(f"PYTHON DEBUG (Manager Emit): bid_status being sent: {bid_status_data}") # KEEP THIS FOR VERIFICATION
                 self.socketio_instance.emit('full_state_update', full_state, namespace='/manager')
             
         except Exception as e:
@@ -1175,16 +1188,18 @@ class AuctionApp(tk.Frame):
 
     def _create_shutdown_overlay(self, initial_message="Please Wait: Initializing shutdown..."):
         if self.shutdown_overlay and self.shutdown_overlay.winfo_exists():
-            self.shutdown_overlay.destroy() # Destroy if one already exists
+            self.shutdown_overlay.destroy()
 
-        self.shutdown_overlay = tk.Toplevel(self)
-        self.shutdown_overlay.withdraw() # Hide initially
-        self.shutdown_overlay.overrideredirect(True) # Remove window decorations (title bar, close button)
-        self.shutdown_overlay.attributes("-alpha", 0.85) # Semi-transparent
-        self.shutdown_overlay.attributes("-topmost", True) # Keep on top
+        self.shutdown_overlay = tk.Toplevel(self.master) # Make it a child of root, not self (the Frame)
+                                                        # This might help with transient behavior.
+        self.shutdown_overlay.withdraw()
+        self.shutdown_overlay.overrideredirect(True) # <<< REINSTATE for borderless
+        self.shutdown_overlay.attributes("-alpha", 0.85)
+        self.shutdown_overlay.transient(self.master) # Set as transient to the main window
+        self.shutdown_overlay.title("Processing...") # Give it a minimal title
+        # self.shutdown_overlay.attributes("-topmost", True) 
 
-        # Calculate position to center it over the main app window
-        self.master.update_idletasks() # Ensure main window dimensions are current
+        self.master.update_idletasks()
         main_app_width = self.master.winfo_width()
         main_app_height = self.master.winfo_height()
         main_app_x = self.master.winfo_x()
@@ -1196,7 +1211,7 @@ class AuctionApp(tk.Frame):
         y_pos = main_app_y + (main_app_height // 2) - (overlay_height // 2)
 
         self.shutdown_overlay.geometry(f"{overlay_width}x{overlay_height}+{x_pos}+{y_pos}")
-        self.shutdown_overlay.configure(bg=THEME_BG_CARD) # Or a distinct color
+        self.shutdown_overlay.configure(bg=THEME_BG_CARD)
 
         self.shutdown_status_var.set(initial_message)
         status_label = tk.Label(self.shutdown_overlay,
@@ -1207,9 +1222,10 @@ class AuctionApp(tk.Frame):
                                 wraplength=overlay_width - 20)
         status_label.pack(expand=True, fill=tk.BOTH, padx=10, pady=10)
         
-        self.shutdown_overlay.deiconify() # Show it
-        self.shutdown_overlay.grab_set() # Make it modal to block main UI interaction
-        self.update_idletasks() # Process display events
+        self.shutdown_overlay.deiconify()
+        self.shutdown_overlay.grab_set() # Still grab to block main app interaction
+        self.shutdown_overlay.lift() # Ensure it's above other app windows
+        self.update_idletasks()
 
     def _update_shutdown_status(self, message):
         if self.shutdown_overlay and self.shutdown_overlay.winfo_exists():
@@ -1223,14 +1239,19 @@ class AuctionApp(tk.Frame):
             self.shutdown_overlay = None
         self.update_idletasks()
 
-    def _stop_flask_server(self):
+    def _stop_flask_server(self, silent_on_success=False): # Added silent_on_success
         if not self.flask_server_running:
-            messagebox.showinfo("Webview Info", "Webview server is not running.", parent=self)
+            if not silent_on_success: # Only show if not part of a silent app close
+                messagebox.showinfo("Webview Info", "Webview server is not running.", parent=self)
             return False
         
-        self._create_shutdown_overlay("Signaling server to stop...")
+        # If not called from on_app_frame_closing, create/update overlay normally
+        if not silent_on_success:
+            self._create_shutdown_overlay("Signaling server to stop...")
+        else: # Called from on_app_frame_closing, ensure status is updated if overlay already exists
+            self._update_shutdown_status("Signaling server to stop...")
         self.update_idletasks()
-
+        
         print("Attempting to stop Flask-SocketIO server via HTTP request...")
         shutdown_success = False
         try:
@@ -1267,37 +1288,35 @@ class AuctionApp(tk.Frame):
         self.flask_app_instance = None
         self.flask_thread = None
         
-        self._destroy_shutdown_overlay() # Remove overlay AFTER all operations
-        messagebox.showinfo("Webview Info", "Webview server has been stopped.", parent=self)
+        if not silent_on_success: # Check flag before destroying overlay and showing message
+            self._destroy_shutdown_overlay()
+            messagebox.showinfo("Webview Info", "Webview server has been stopped.", parent=self)
+        else: # If silent, just destroy the overlay
+            self._destroy_shutdown_overlay()
+            print("Webview server stopped silently.")
         return True
 
-    def on_app_frame_closing(self): # This is called when the main Tkinter window's X is clicked
+    def on_app_frame_closing(self):
         if self.engine:
             self.engine.close_logger()
 
         if self.flask_server_running:
-            # Don't show messagebox here if we're closing, just try to stop
             print("Attempting to stop Flask server on app close...")
-            self._create_shutdown_overlay("Closing application: Shutting down web server...")
-            self.update_idletasks() # Make sure overlay shows
-
-            # We need to run the server stop in a way that doesn't block the UI thread
-            # from processing the destroy() call.
-            # However, _stop_flask_server already involves waiting for a thread.
-            # For graceful shutdown, this blocking might be unavoidable to some extent.
+            # Create overlay if not already there (e.g. if stop was initiated by menu)
+            if not (self.shutdown_overlay and self.shutdown_overlay.winfo_exists()):
+                 self._create_shutdown_overlay("Closing application: Shutting down web server...")
+            else: # Overlay might exist if user clicked "Stop server" then immediately "Close app"
+                 self._update_shutdown_status("Closing application: Shutting down web server...")
+            self.update_idletasks()
             
-            self._stop_flask_server() # This will handle its own overlay updates
-
-            # _destroy_shutdown_overlay() is called at the end of _stop_flask_server
-        else:
-            # If server not running, no overlay needed for server part
-            pass 
+            self._stop_flask_server(silent_on_success=True) # Pass True to suppress final messagebox
+            # Overlay is destroyed within _stop_flask_server
         
         if self.manager_links_window_instance and self.manager_links_window_instance.winfo_exists():
             self.manager_links_window_instance.destroy()
         
-        print("AuctionApp closed. Destroying root window.")
-        # The root.destroy() is called by the main() function's on_root_close
+        print("AuctionApp closed. Main window will be destroyed by root protocol.")
+        # self.master.destroy() # Let the root.protocol("WM_DELETE_WINDOW", on_root_close) handle this
 
     def _sanitize_for_filename(self, name, is_logo=False):
         if not name:
