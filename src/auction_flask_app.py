@@ -1,15 +1,15 @@
-# --- auction_flask_app.py ---
+# auction_flask_app.py
+
 import os
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify
 from flask_socketio import SocketIO, emit
 import logging
+from flask import request as flask_request # Alias for clarity
 
 # Disable werkzeug logs for cleaner terminal, or set to INFO for debugging
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR) # or logging.WARNING
 
-# Global variable to hold the AuctionApp instance from Tkinter
-# This is a simple way to share; for larger apps, consider more robust patterns.
 tk_auction_app_instance = None
 flask_socketio_instance = None
 
@@ -18,7 +18,6 @@ def create_flask_app(auction_app_ref):
 
     tk_auction_app_instance = auction_app_ref
 
-    # Determine template and static folder paths relative to this script's location
     base_dir = os.path.abspath(os.path.dirname(__file__))
     template_folder = os.path.join(base_dir, 'templates')
     static_folder = os.path.join(base_dir, 'static')
@@ -28,48 +27,69 @@ def create_flask_app(auction_app_ref):
     if not os.path.isdir(static_folder):
         print(f"WARNING: Static folder not found at {static_folder}")
 
-
+    # --- Instantiate Flask App FIRST ---
     flask_app = Flask(__name__, template_folder=template_folder, static_folder=static_folder)
-    flask_app.config['SECRET_KEY'] = os.urandom(24) # Essential for SocketIO sessions
-    flask_app.config['TEMPLATES_AUTO_RELOAD'] = True # Useful for development
+    flask_app.config['SECRET_KEY'] = os.urandom(24)
+    flask_app.config['TEMPLATES_AUTO_RELOAD'] = True
 
-    # Use 'threading' for async_mode when running SocketIO with an external server (like Tkinter control)
-    # For production with gunicorn/eventlet/gevent, this would be different.
-    socketio = SocketIO(flask_app, async_mode='threading', cors_allowed_origins="*") # Allow all for simplicity
-    flask_socketio_instance = socketio # Store for external emit access if needed
+    socketio = SocketIO(flask_app, async_mode='threading', cors_allowed_origins="*")
+    flask_socketio_instance = socketio
 
-    # --- Routes ---
+    # --- Now Define Routes ---
     @flask_app.route('/')
     def index():
-        return "Auction Webview Server is running. Access /presenter or /manager/YourTeamName"
+        return "Auction Webview Server. Presenter: /presenter. Manager: /manager/TeamName/AccessToken"
 
     @flask_app.route('/presenter')
     def presenter_view_route():
-        if not tk_auction_app_instance:
-            return "Auction App not initialized", 500
+        if not tk_auction_app_instance or not tk_auction_app_instance.presenter_active:
+            return "Presenter view is not currently active or auction app not initialized.", 403
         return render_template('presenter_view.html',
                                auction_name=tk_auction_app_instance.engine.get_auction_name())
 
-    @flask_app.route('/manager/<team_name>')
-    def team_manager_view_route(team_name):
-        if not tk_auction_app_instance:
-            return "Auction App not initialized", 500
+    @flask_app.route('/manager/<team_name>/<access_token>')
+    def team_manager_view_route(team_name, access_token):
+        if not tk_auction_app_instance or not tk_auction_app_instance.manager_access_enabled:
+            return "Manager access is not currently enabled or auction app not initialized.", 403
         
         engine_teams = tk_auction_app_instance.engine.teams_data
         if team_name not in engine_teams:
             return f"Team '{team_name}' not found in this auction.", 404
-        
-        # Provide all team names for the manager to view others
-        all_team_names = sorted(list(engine_teams.keys()))
 
+        valid_tokens = tk_auction_app_instance.team_manager_access_tokens
+        if valid_tokens.get(team_name) != access_token:
+            print(f"Invalid access token attempt for team {team_name}. Provided: {access_token}, Expected: {valid_tokens.get(team_name)}")
+            return "Invalid access token or team mismatch.", 403
+        
+        all_team_names = sorted(list(engine_teams.keys()))
         return render_template('team_manager_view.html',
                                auction_name=tk_auction_app_instance.engine.get_auction_name(),
                                my_team_name=team_name,
-                               all_team_names=all_team_names)
+                               all_team_names=all_team_names,
+                               access_token=access_token)
+
+    # --- Special Shutdown Route ---
+    def shutdown_server_function(): # Renamed to avoid conflict with flask_request.environ.get
+        func = flask_request.environ.get('werkzeug.server.shutdown')
+        if func is None:
+            print('Not running with the Werkzeug Server or shutdown unavailable.')
+            # This is not an HTTP response, just a server-side print
+            # The client will likely hang or timeout if shutdown fails here.
+            # Consider raising an error or returning a specific value to signal failure.
+            return
+        func()
+        # No return here as server is shutting down.
+
+    @flask_app.route('/shutdown_server_please', methods=['POST'])
+    def shutdown_route(): # Renamed route function
+        print("Flask app received shutdown request.")
+        shutdown_server_function() # Call the actual shutdown
+        return "Flask server is attempting to shut down." # This response might not always be sent if shutdown is immediate
 
     # --- API Routes for dynamic data loading by JS ---
     @flask_app.route('/api/all_teams_status')
     def api_all_teams_status():
+        # ... (rest of your API route)
         if not tk_auction_app_instance: return jsonify({"error": "Auction not ready"}), 500
         
         teams_status = {}
@@ -78,15 +98,17 @@ def create_flask_app(auction_app_ref):
             teams_status[team_name] = {
                 "money": data["money"],
                 "logo_path": tk_auction_app_instance._get_web_path(data.get("logo_path")),
-                "inventory": { # Convert player names to simple list or dict with purchase price
+                "inventory": { 
                     p_name: p_price 
                     for p_name, p_price in data.get("inventory", {}).items()
                 }
             }
         return jsonify(teams_status)
 
+
     @flask_app.route('/api/player_details/<player_name>')
     def api_player_details(player_name):
+        # ... (rest of your API route)
         if not tk_auction_app_instance: return jsonify({"error": "Auction not ready"}), 500
         player_info = tk_auction_app_instance.engine.players_initial_info.get(player_name)
         if not player_info:
@@ -96,76 +118,104 @@ def create_flask_app(auction_app_ref):
             "name": player_name,
             "base_bid": player_info.get("base_bid"),
             "photo_path": tk_auction_app_instance._get_web_path(player_info.get("photo_path"))
-            # Add other details like role if available later
         })
 
-
     # --- SocketIO Event Handlers ---
+    # ... (rest of your SocketIO handlers) ...
     @socketio.on('connect', namespace='/presenter')
-    def handle_presenter_connect(auth=None): # <--- FIX HERE (add auth=None or *args)
-        print(f"Presenter client connected: {request.sid}")
+    def handle_presenter_connect(auth=None): 
+        if not tk_auction_app_instance or not tk_auction_app_instance.presenter_active:
+            print(f"Presenter client connection refused (presenter_active=false): {flask_request.sid}")
+            return False 
+        print(f"Presenter client connected: {flask_request.sid}")
         if tk_auction_app_instance:
-            tk_auction_app_instance._emit_full_state_to_webview()
+            tk_auction_app_instance._emit_full_state_to_webview() 
 
     @socketio.on('connect', namespace='/manager')
-    def handle_manager_connect(auth=None): # <--- FIX HERE (add auth=None or *args)
-        print(f"Manager client connected: {request.sid}")
+    def handle_manager_connect(auth_data): 
+        if not tk_auction_app_instance or not tk_auction_app_instance.manager_access_enabled:
+            print(f"Manager client connection refused (manager_access_enabled=false): {flask_request.sid}")
+            return False 
+
+        team_name = auth_data.get('team_name') if auth_data else None
+        token = auth_data.get('access_token') if auth_data else None
+
+        if not team_name or not token:
+            print(f"Manager client {flask_request.sid} connection refused: Missing team_name or token in auth.")
+            return False
+
+        valid_tokens = tk_auction_app_instance.team_manager_access_tokens
+        if valid_tokens.get(team_name) != token:
+            print(f"Manager client {flask_request.sid} connection refused: Invalid token for team {team_name}.")
+            return False
+        
+        print(f"Manager client for team '{team_name}' connected: {flask_request.sid}")
         if tk_auction_app_instance:
             tk_auction_app_instance._emit_full_state_to_webview()
 
     @socketio.on('disconnect', namespace='/presenter')
     def handle_presenter_disconnect():
-        print(f"Presenter client disconnected: {request.sid}")
+        print(f"Presenter client disconnected: {flask_request.sid}")
 
     @socketio.on('disconnect', namespace='/manager')
     def handle_manager_disconnect():
-        print(f"Manager client disconnected: {request.sid}")
+        print(f"Manager client disconnected: {flask_request.sid}")
 
     @socketio.on('request_initial_data', namespace='/presenter')
-    @socketio.on('request_initial_data', namespace='/manager')
-    def handle_request_initial_data():
-        """Client explicitly requests full data load."""
-        if tk_auction_app_instance:
+    def handle_request_initial_data_presenter(): 
+        if tk_auction_app_instance and tk_auction_app_instance.presenter_active:
             tk_auction_app_instance._emit_full_state_to_webview()
+
+    @socketio.on('request_initial_data', namespace='/manager')
+    def handle_request_initial_data_manager(data): 
+        if not tk_auction_app_instance or not tk_auction_app_instance.manager_access_enabled:
+            return
+
+        team_name = data.get('team_name')
+        token = data.get('access_token')
+        valid_tokens = tk_auction_app_instance.team_manager_access_tokens
+        if valid_tokens.get(team_name) == token:
+            tk_auction_app_instance._emit_full_state_to_webview()
+        else:
+            print(f"Manager {flask_request.sid} (Team: {team_name}) requested initial data with invalid token.")
+            emit('auth_error', {'message': 'Invalid session token for data request.'}, room=flask_request.sid)
 
     @socketio.on('submit_bid_from_manager', namespace='/manager')
     def handle_bid_from_manager_webview(data):
-        team_name = data.get('team_name')
-        # current_item_name = data.get('item_name') # The item should be known by the engine
-
-        if not tk_auction_app_instance or not tk_auction_app_instance.engine:
-            emit('bid_error', {'message': 'Auction engine not ready.'}, room=request.sid)
+        if not tk_auction_app_instance or not tk_auction_app_instance.manager_access_enabled:
+            emit('bid_error', {'message': 'Manager access currently disabled.'}, room=flask_request.sid)
             return
 
+        team_name = data.get('team_name')
+        token = data.get('access_token') 
+
+        valid_tokens = tk_auction_app_instance.team_manager_access_tokens
+        if valid_tokens.get(team_name) != token:
+            emit('bid_error', {'message': 'Invalid access token for bidding.'}, room=flask_request.sid)
+            print(f"Bid attempt from manager with invalid token. Team: {team_name}, SID: {flask_request.sid}")
+            return
+        
         engine = tk_auction_app_instance.engine
         if not engine.bidding_active or not engine.current_item_name:
-            emit('bid_error', {'message': 'No item currently up for bidding.'}, room=request.sid)
+            emit('bid_error', {'message': 'No item currently up for bidding.'}, room=flask_request.sid)
             return
         
         if not team_name:
-            emit('bid_error', {'message': 'Team name not provided for bid.'}, room=request.sid)
+            emit('bid_error', {'message': 'Team name not provided for bid.'}, room=flask_request.sid)
             return
             
         if team_name not in engine.teams_data:
-            emit('bid_error', {'message': f"Team '{team_name}' is not recognized in this auction."}, room=request.sid)
+            emit('bid_error', {'message': f"Team '{team_name}' is not recognized in this auction."}, room=flask_request.sid)
             return
-
-        # --- CRITICAL: Call the Tkinter app's method to place the bid ---
-        # This ensures the bid goes through the same validation and state update logic,
-        # and that Tkinter UI also updates.
-        # The method in Tkinter app needs to handle being called from this (Flask) thread.
-        # It should then trigger refresh_all_ui_displays() which includes _emit_full_state_to_webview().
+        
         try:
-            # We need a robust way for AuctionApp to schedule this in its main thread
-            # or ensure its methods are thread-safe for this call.
-            # For now, direct call and AuctionApp's refresh will handle emitting.
-            # AuctionApp's place_bid method must handle its own Tkinter UI updates safely.
             tk_auction_app_instance.master.after(0, lambda: tk_auction_app_instance.ui_place_bid_from_webview(team_name))
-
-            # No direct emit here; let AuctionApp's refresh logic send the global update.
-            # emit('bid_accepted', {'message': 'Bid submitted, awaiting confirmation.'}, room=request.sid)
         except Exception as e:
             print(f"Error processing bid from manager '{team_name}': {e}")
-            emit('bid_error', {'message': f'Error processing bid: {str(e)}'}, room=request.sid)
+            emit('bid_error', {'message': f'Error processing bid: {str(e)}'}, room=flask_request.sid)
 
-    return flask_app, socketio 
+    @socketio.on('access_revoked', namespace='/manager') 
+    def handle_access_revoked_info(data):
+        pass 
+
+    return flask_app, socketio

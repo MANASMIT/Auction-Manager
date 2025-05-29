@@ -6,14 +6,17 @@ import os
 import re
 import csv
 import json
+import requests
 from datetime import datetime
 import threading
 import webbrowser
 import time # For shutdown check
+import secrets # For generating secure tokens
+import clipboard # For copy to clipboard, pip install clipboard
 
 # Conditional imports for Flask and SocketIO
 try:
-    from flask import Flask, render_template, jsonify, request # Already in auction_flask_app
+    from flask import Flask, render_template, jsonify # Already in auction_flask_app
     from flask_socketio import SocketIO, emit # Already in auction_flask_app
     # Import your flask app module
     import auction_flask_app 
@@ -364,8 +367,8 @@ class LogViewerDialog(tk.Toplevel):
 
 class TopMenuBar(tk.Frame):
     def __init__(self, master, app_controller, **kwargs):
-        super().__init__(master, bg=THEME_BG_CARD, **kwargs) # Menu bar background
-        self.app_controller = app_controller # To call methods in AuctionApp
+        super().__init__(master, bg=THEME_BG_CARD, **kwargs)
+        self.app_controller = app_controller
         self.visible = False
         self.menu_items_frame = None
 
@@ -375,17 +378,15 @@ class TopMenuBar(tk.Frame):
                                           bg=THEME_BG_SECONDARY, fg=THEME_TEXT_PRIMARY)
         self.toggle_button.pack(side=tk.LEFT, anchor="nw", padx=5, pady=2)
 
-        # Bind Alt key to the root window for toggling
-        # Ensure master.master points to the root Tk() instance
-        if hasattr(master, 'master') and master.master is not None: # master is AuctionApp, master.master is root
+        if hasattr(master, 'master') and master.master is not None:
             master.master.bind_all("<Alt_L>", lambda e: self.toggle_menu_visibility())
             master.master.bind_all("<Alt_R>", lambda e: self.toggle_menu_visibility())
-        else: # If master is already root (e.g. for testing TopMenuBar directly)
+        else:
             master.bind_all("<Alt_L>", lambda e: self.toggle_menu_visibility())
             master.bind_all("<Alt_R>", lambda e: self.toggle_menu_visibility())
 
-
         self._create_menu_items()
+        self.manager_links_window = None # To hold the manager links Toplevel window
 
     def _create_menu_items(self):
         self.menu_items_frame = tk.Frame(self, bg=THEME_BG_CARD)
@@ -398,11 +399,25 @@ class TopMenuBar(tk.Frame):
         view_label = tk.Label(self.menu_items_frame, text="View", font=get_font(10, "bold"), bg=THEME_BG_CARD, fg=THEME_ACCENT_PRIMARY, padx=10)
         view_label.pack(side=tk.LEFT, padx=(10,0))
 
-        self.presenter_toggle_btn_text = tk.StringVar(value="Start Presenter Webview") # For dynamic text
+        # Presenter Toggle
+        self.presenter_toggle_btn_text = tk.StringVar(value="Start Presenter Webview")
         presenter_btn = StyledButton(self.menu_items_frame, textvariable=self.presenter_toggle_btn_text,
-                                     command=self.app_controller._handle_presenter_webview_toggle, # THIS LINE
+                                     command=self.app_controller._handle_presenter_webview_toggle,
                                      font=get_font(9), bg=THEME_BG_CARD, fg=THEME_TEXT_PRIMARY, padx=8, pady=2)
         presenter_btn.pack(side=tk.LEFT, padx=2)
+
+        # Manager Toggle & Links Button
+        self.manager_toggle_btn_text = tk.StringVar(value="Enable Manager Access") # Text for main toggle
+        manager_main_btn = StyledButton(self.menu_items_frame, textvariable=self.manager_toggle_btn_text,
+                                     command=self.app_controller._handle_manager_access_toggle, # New method in AuctionApp
+                                     font=get_font(9), bg=THEME_BG_CARD, fg=THEME_TEXT_PRIMARY, padx=8, pady=2)
+        manager_main_btn.pack(side=tk.LEFT, padx=2)
+
+        manager_show_links_btn = StyledButton(self.menu_items_frame, text="Show Manager Links",
+                                     command=self.app_controller._show_manager_links_window, # New method in AuctionApp
+                                     font=get_font(9), bg=THEME_BG_CARD, fg=THEME_TEXT_PRIMARY, padx=8, pady=2)
+        manager_show_links_btn.pack(side=tk.LEFT, padx=2)
+
 
         logs_btn = StyledButton(self.menu_items_frame, text="Show Logs", command=self.app_controller._open_log_viewer, font=get_font(9), bg=THEME_BG_CARD, fg=THEME_TEXT_PRIMARY, padx=8, pady=2)
         logs_btn.pack(side=tk.LEFT, padx=2)
@@ -424,8 +439,123 @@ class TopMenuBar(tk.Frame):
 
     def _show_about(self):
         messagebox.showinfo("About Auction Command",
-                            "Auction Command v1.1\n\nA Simple Auction Management Tool.",
+                            "Auction Command v1.2\n\nA Simple Auction Management Tool.",
                             parent=self.app_controller)
+
+    # Method to potentially update links if the window is open and tokens change (e.g., server restart)
+    def update_manager_links_display(self, team_access_links):
+        if self.manager_links_window and self.manager_links_window.winfo_exists():
+            self.manager_links_window.update_links(team_access_links)
+
+    def manager_links_window_closed(self): # <--- ADD THIS METHOD HERE
+        # This method is called by ManagerLinksWindow when its 'close' button is pressed.
+        # It signifies that the window is hidden, not destroyed.
+        # AuctionApp._show_manager_links_window will handle showing it again.
+        # We don't need to do much here other than acknowledge it,
+        # or potentially update a state variable if TopMenuBar itself needed to know.
+        # For now, just having it prevents the AttributeError.
+        # print("TopMenuBar: ManagerLinksWindow reported closed (hidden).")
+        pass
+
+# auction_UI.py
+
+class ManagerLinksWindow(tk.Toplevel):
+    def __init__(self, master, team_access_links, base_url):
+        super().__init__(master)
+        self.title("Team Manager Access Links")
+        self.geometry("650x450") # Slightly wider for full links
+        self.configure(bg=THEME_BG_PRIMARY)
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
+        self.app_controller = master
+
+        self.base_url = base_url
+        self.main_frame = tk.Frame(self, bg=THEME_BG_PRIMARY, padx=10, pady=10)
+        self.main_frame.pack(fill=tk.BOTH, expand=True)
+
+        tk.Label(self.main_frame, text="Copy these links and provide them to the respective team managers.",
+                 font=get_font(10), bg=THEME_BG_PRIMARY, fg=THEME_TEXT_PRIMARY, wraplength=630).pack(pady=(0,10), fill=tk.X)
+
+        canvas_frame = tk.Frame(self.main_frame, bg=THEME_BG_SECONDARY) # Frame to hold canvas and scrollbar
+        canvas_frame.pack(fill=tk.BOTH, expand=True)
+
+        self.links_canvas = tk.Canvas(canvas_frame, bg=THEME_BG_SECONDARY, highlightthickness=0)
+        self.links_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        scrollbar = ttk.Scrollbar(canvas_frame, orient="vertical", command=self.links_canvas.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.links_canvas.configure(yscrollcommand=scrollbar.set)
+
+        self.scrollable_frame = tk.Frame(self.links_canvas, bg=THEME_BG_SECONDARY)
+        self.canvas_window_id = self.links_canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+
+        self.scrollable_frame.bind("<Configure>", self._on_frame_configure)
+        # Bind to the canvas's <Configure> event to adjust the width of the frame inside the canvas
+        self.links_canvas.bind("<Configure>", self._on_canvas_configure) 
+        
+        self.link_widgets = {}
+        self.update_links(team_access_links)
+
+    def _on_frame_configure(self, event=None):
+        # Update scrollregion whenever the scrollable_frame's size changes
+        self.links_canvas.configure(scrollregion=self.links_canvas.bbox("all"))
+
+    def _on_canvas_configure(self, event=None):
+        # Adjust the width of the scrollable_frame to match the canvas width
+        self.links_canvas.itemconfig(self.canvas_window_id, width=event.width)
+
+    def _copy_to_clipboard(self, text_to_copy):
+        try:
+            clipboard.copy(text_to_copy) # Use the clipboard library
+            messagebox.showinfo("Copied", f"Link copied to clipboard:\n{text_to_copy}", parent=self)
+        except Exception as e:
+            messagebox.showerror("Copy Error", f"Could not copy to clipboard: {e}\nMake sure you have a clipboard manager (e.g., xclip or xsel on Linux).", parent=self)
+            print(f"Clipboard copy error: {e}")
+
+
+    def update_links(self, team_access_links):
+        for widget in self.scrollable_frame.winfo_children():
+            widget.destroy()
+        self.link_widgets.clear()
+
+        if not team_access_links:
+            tk.Label(self.scrollable_frame, text="Manager access is currently disabled or no teams loaded.",
+                     font=get_font(12), bg=THEME_BG_SECONDARY, fg=THEME_TEXT_SECONDARY).pack(pady=20, padx=10)
+        else:
+            for team_name, token in sorted(team_access_links.items()):
+                link = f"{self.base_url}/manager/{team_name}/{token}"
+                
+                row_frame = tk.Frame(self.scrollable_frame, bg=THEME_BG_CARD, padx=5, pady=5)
+                # Make row_frame fill width of scrollable_frame
+                row_frame.pack(fill=tk.X, pady=3, padx=5) 
+
+                tk.Label(row_frame, text=f"{team_name}:", font=get_font(11, "bold"), 
+                         bg=THEME_BG_CARD, fg=THEME_ACCENT_PRIMARY, width=15, anchor="w").pack(side=tk.LEFT, padx=(0,5))
+                
+                link_entry = tk.Entry(row_frame, font=get_font(10), relief=tk.FLAT, 
+                                      bg=THEME_BG_SECONDARY, fg=THEME_TEXT_PRIMARY)
+                link_entry.insert(0, link)
+                link_entry.config(state='readonly') # Corrected state
+                link_entry.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=5)
+                
+                copy_btn = StyledButton(row_frame, text="Copy", font=get_font(9), 
+                                        command=lambda l=link: self._copy_to_clipboard(l),
+                                        bg=SECONDARY_BUTTON_BG, fg=SECONDARY_BUTTON_FG, padx=8, pady=2)
+                copy_btn.pack(side=tk.LEFT, padx=5)
+                self.link_widgets[team_name] = {'frame': row_frame, 'entry': link_entry, 'button': copy_btn}
+        
+        # Crucial: After populating, update idletasks so bbox is correct, then configure scrollregion
+        self.scrollable_frame.update_idletasks() 
+        self.links_canvas.config(scrollregion=self.links_canvas.bbox("all"))
+
+    def _on_close(self):
+        self.withdraw()
+        if self.app_controller and hasattr(self.app_controller, 'menu_bar') and self.app_controller.menu_bar:
+            self.app_controller.menu_bar.manager_links_window_closed()
+
+    def show(self):
+        self.deiconify()
+        self.lift()
+        self.focus_set()
 
 class AuctionApp(tk.Frame):
     def __init__(self, master, auction_engine_instance):
@@ -443,7 +573,11 @@ class AuctionApp(tk.Frame):
         self.flask_server_running = False
         self.flask_port = 5000 # Or make configurable
         self.stop_flask_event = threading.Event()
-
+        
+        self.presenter_active = False # New state for presenter view
+        self.manager_access_enabled = False # New state for manager view
+        self.team_manager_access_tokens = {} # {team_name: token}
+        self.manager_links_window_instance = None
 
         self._setup_ui()
         self.refresh_all_ui_displays() # Initial display update
@@ -578,53 +712,41 @@ class AuctionApp(tk.Frame):
             self.socketio_instance = None # Clear instance
 
     def _stop_flask_server(self):
-        if not self.flask_server_running or not self.socketio_instance:
+        if not self.flask_server_running: # Removed socketio_instance check as it might be None but server runs
             messagebox.showinfo("Webview Info", "Webview server is not running.", parent=self)
             return False
         
-        print("Attempting to stop Flask-SocketIO server...")
+        print("Attempting to stop Flask-SocketIO server via HTTP request...")
         try:
-            # SocketIO has a 'stop' method that can be called.
-            # This should signal the underlying server (e.g., Werkzeug) to shut down.
-            self.socketio_instance.stop() # This is the preferred way for flask_socketio
-            self.stop_flask_event.set() # Signal for the thread to exit its loop if it had one
+            # Send a POST request to the shutdown route
+            response = requests.post(f"http://localhost:{self.flask_port}/shutdown_server_please", timeout=2)
+            print(f"Shutdown request response: {response.status_code} - {response.text}")
+        except requests.exceptions.RequestException as e:
+            print(f"Could not connect to Flask server to shut it down: {e}")
+            # Proceed with thread joining as a fallback, though it might not be clean.
 
-            if self.flask_thread and self.flask_thread.is_alive():
-                 print("Waiting for Flask thread to join...")
-                 self.flask_thread.join(timeout=5) # Wait for the thread to finish
-                 if self.flask_thread.is_alive():
-                     print("Warning: Flask thread did not stop after timeout.")
-                 else:
-                     print("Flask thread joined successfully.")
-            
-            self.flask_server_running = False
+        self.stop_flask_event.set() 
+
+        if self.flask_thread and self.flask_thread.is_alive():
+            print("Waiting for Flask thread to join...")
+            self.flask_thread.join(timeout=5) 
+            if self.flask_thread.is_alive():
+                print("Warning: Flask thread did not stop cleanly after timeout.")
+            else:
+                print("Flask thread joined successfully.")
+        
+        self.flask_server_running = False
+        # Update both buttons if they exist in menu_bar
+        if hasattr(self.menu_bar, 'presenter_toggle_btn_text'):
             self.menu_bar.presenter_toggle_btn_text.set("Start Presenter Webview")
-            messagebox.showinfo("Presenter Webview", "Presenter web server has been signaled to stop.", parent=self)
-            self.socketio_instance = None
-            self.flask_app_instance = None
-            self.flask_thread = None
-            return True
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
-            messagebox.showerror("Webview Error", f"Error attempting to stop Flask server: {e}", parent=self)
-            # Even on error, update UI state to allow restart attempt
-            self.flask_server_running = False # Assume it might have stopped or is unstable
-            if hasattr(self, 'menu_bar'):
-                self.menu_bar.presenter_toggle_btn_text.set("Start Presenter Webview (Error)")
-            return False
+        if hasattr(self.menu_bar, 'manager_toggle_btn_text'):
+            self.menu_bar.manager_toggle_btn_text.set("Enable Manager Access")
 
-    def _handle_presenter_webview_toggle(self):
-        if not FLASK_AVAILABLE:
-            messagebox.showerror("Feature Unavailable",
-                                 "Flask/SocketIO is not installed or auction_flask_app.py is missing. Webview cannot be started.",
-                                 parent=self)
-            return
-
-        if not self.flask_server_running:
-            self._start_flask_server()
-        else:
-            self. _stop_flask_server()
+        messagebox.showinfo("Webview Info", "Webview server has been signaled to stop.", parent=self)
+        self.socketio_instance = None # These should be cleared
+        self.flask_app_instance = None
+        self.flask_thread = None # Clear the thread object
+        return True
 
     def _handle_load_selected_state_from_history(self, json_state_string, loaded_timestamp, loaded_action_desc, loaded_serial_no):
         success, message = self.engine.load_state_from_json_string(json_state_string, loaded_timestamp, loaded_action_desc, loaded_serial_no)
@@ -634,6 +756,117 @@ class AuctionApp(tk.Frame):
         else:
             messagebox.showerror("Load Error", message, parent=self)
         self._check_and_display_engine_warnings("Warning during state load from history:")
+
+    def _start_flask_server_if_needed(self):
+        """Starts the Flask server if it's not running and any web feature is active."""
+        if not FLASK_AVAILABLE: return False
+        if self.flask_server_running: return True # Already running
+
+        if self.presenter_active or self.manager_access_enabled:
+            print("Starting Flask server as a web feature is active.")
+            return self._start_flask_server() # Your existing start server method
+        return False # No need to start
+
+    def _stop_flask_server_if_idle(self):
+        """Stops the Flask server if it's running and no web features are active."""
+        if not self.flask_server_running: return False
+        
+        if not self.presenter_active and not self.manager_access_enabled:
+            print("Stopping Flask server as no web features are active.")
+            return self._stop_flask_server() # Your existing stop server method
+        return False # Still needed
+
+    def _handle_presenter_webview_toggle(self):
+        if not FLASK_AVAILABLE:
+            messagebox.showerror("Feature Unavailable", "Flask/SocketIO not available.", parent=self)
+            return
+
+        if not self.presenter_active:
+            self.presenter_active = True
+            self.menu_bar.presenter_toggle_btn_text.set("Stop Presenter Webview")
+            if self._start_flask_server_if_needed():
+                 webbrowser.open(f"http://localhost:{self.flask_port}/presenter")
+                 self._emit_full_state_to_webview() # Send initial state
+            else: # Server failed to start
+                self.presenter_active = False
+                self.menu_bar.presenter_toggle_btn_text.set("Start Presenter Webview (Error)")
+        else:
+            self.presenter_active = False
+            self.menu_bar.presenter_toggle_btn_text.set("Start Presenter Webview")
+            self._stop_flask_server_if_idle()
+            # Optionally, could emit something to tell presenter clients to disconnect or show a message
+            if self.socketio_instance:
+                self.socketio_instance.emit('server_message', {'message': 'Presenter view has been disabled by admin.'}, namespace='/presenter')
+
+    def _generate_manager_tokens(self):
+        self.team_manager_access_tokens.clear()
+        if not self.engine or not self.engine.teams_data:
+            return
+        for team_name in self.engine.teams_data.keys():
+            self.team_manager_access_tokens[team_name] = secrets.token_urlsafe(16)
+        print("Generated new manager access tokens:", self.team_manager_access_tokens)
+        # If links window is open, update it
+        if self.manager_links_window_instance and self.manager_links_window_instance.winfo_exists():
+            self.manager_links_window_instance.update_links(self.team_manager_access_tokens if self.manager_access_enabled else {})
+
+    def _handle_manager_access_toggle(self):
+        if not FLASK_AVAILABLE:
+            messagebox.showerror("Feature Unavailable", "Flask/SocketIO not available.", parent=self)
+            return
+
+        if not self.manager_access_enabled:
+            self.manager_access_enabled = True
+            self._generate_manager_tokens() # Generate tokens when enabling
+            self.menu_bar.manager_toggle_btn_text.set("Disable Manager Access")
+            self._start_flask_server_if_needed()
+            messagebox.showinfo("Manager Access", "Manager access enabled. Use 'Show Manager Links' to get URLs.", parent=self)
+            if self.manager_links_window_instance and self.manager_links_window_instance.winfo_exists(): # Update window if open
+                self.manager_links_window_instance.update_links(self.team_manager_access_tokens)
+
+        else:
+            self.manager_access_enabled = False
+            # self.team_manager_access_tokens.clear() # Clear tokens when disabling for security
+            self.menu_bar.manager_toggle_btn_text.set("Enable Manager Access")
+            self._stop_flask_server_if_idle()
+            messagebox.showinfo("Manager Access", "Manager access disabled.", parent=self)
+            if self.manager_links_window_instance and self.manager_links_window_instance.winfo_exists(): # Update window if open
+                self.manager_links_window_instance.update_links({}) # Show no links
+            # Emit to manager clients that access is revoked
+            if self.socketio_instance:
+                self.socketio_instance.emit('access_revoked', {'message': 'Manager access has been disabled by admin.'}, namespace='/manager')
+        
+    def _show_manager_links_window(self):
+        if not self.manager_access_enabled:
+            messagebox.showwarning("Manager Access Disabled", 
+                                   "Manager access is currently disabled. Enable it first to view links.", parent=self)
+            return
+
+        if not self.engine or not self.engine.teams_data:
+            messagebox.showerror("Error", "No teams loaded to generate links for.", parent=self)
+            return
+        
+        if not self.team_manager_access_tokens: # Should be generated when access is enabled
+            self._generate_manager_tokens()
+
+        base_url = f"http://localhost:{self.flask_port}" # Assuming server is running or will run
+
+        if self.manager_links_window_instance and self.manager_links_window_instance.winfo_exists():
+            self.manager_links_window_instance.update_links(self.team_manager_access_tokens)
+            self.manager_links_window_instance.show()
+        else:
+            self.manager_links_window_instance = ManagerLinksWindow(self, self.team_manager_access_tokens, base_url)
+            self.manager_links_window_instance.show()
+
+    # In on_app_frame_closing:
+    def on_app_frame_closing(self):
+        if self.manager_links_window_instance and self.manager_links_window_instance.winfo_exists():
+            self.manager_links_window_instance.destroy() # Properly destroy the Toplevel
+        if self.engine: self.engine.close_logger()
+        # Stop Flask server if it's running, regardless of individual feature states
+        if self.flask_server_running:
+            print("Attempting to stop Flask server on app close...")
+            self._stop_flask_server() # This is your existing method
+        print("AuctionApp closed.")
 
     def _on_mousewheel_teams(self, event):
         widget_under_mouse = self.winfo_containing(event.x_root, event.y_root); target_canvas = None; current_widget = widget_under_mouse

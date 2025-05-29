@@ -56,20 +56,20 @@ function updateCurrentItemDisplay(itemData) {
     // itemData: { name, photo_path, base_bid } or null
     const noItemMsg = document.getElementById('no-item-message');
     const itemNameEl = document.getElementById('item-name');
-    const bidButton = document.getElementById('bid-button'); // Exists in manager view
+    // const bidButton = document.getElementById('bid-button'); // Exists in manager view
 
     if (itemData && itemData.name) {
         if (noItemMsg) noItemMsg.style.display = 'none';
         setText('item-name', itemData.name);
         setImage('item-photo', itemData.photo_path, itemData.name);
         setText('item-base-bid', `₹${itemData.base_bid ? itemData.base_bid.toLocaleString() : 'N/A'}`);
-        if (bidButton) bidButton.disabled = false;
+        // if (bidButton) bidButton.disabled = false;
     } else {
         if (noItemMsg) noItemMsg.style.display = 'block';
         setText('item-name', '');
         setImage('item-photo', null);
         setText('item-base-bid', '₹0');
-        if (bidButton) bidButton.disabled = true;
+        // if (bidButton) bidButton.disabled = true;
     }
 }
 
