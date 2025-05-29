@@ -63,19 +63,28 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     socket.on('full_state_update', (data) => {
-        // console.log(`Manager ${MY_TEAM_NAME}: Full state update:`, data);
-        updateCurrentItemDisplay(data.current_item);
+        // // DETAILED LOGGING FOR THE RECEIVED DATA
+        // console.log(`Manager ${MY_TEAM_NAME}: Received full_state_update. Raw data:`, data);
+        // console.log(`Manager ${MY_TEAM_NAME}: data.current_item:`, data.current_item);
+        // console.log(`Manager ${MY_TEAM_NAME}: data.is_item_active:`, data.is_item_active);
+        // if (data.current_item) {
+        //     console.log(`Manager ${MY_TEAM_NAME}: data.current_item.name:`, data.current_item.name);
+        // }
+
+
+        updateCurrentItemDisplay(data.current_item); // This is from common.js
         updateBiddingStatusDisplay(data.bid_status);
 
+        // Check the condition explicitly
         if (data.current_item && data.current_item.name && data.is_item_active) {
+            bidButton.disabled = false; // Enable the button if item is active and has a name
             currentItemNameGlobal = data.current_item.name;
-            if (bidButton) bidButton.disabled = false;
         } else {
+            bidButton.disabled = true; // Disable the button if no item or not active
             currentItemNameGlobal = null;
-            if (bidButton) bidButton.disabled = true;
         }
-        fetchMyTeamStatus(); // Refresh my team's funds/roster after any state change
-        // If other team view is active, refresh it too
+
+        fetchMyTeamStatus(); 
         if (otherTeamsDropdown && otherTeamsDropdown.value && document.getElementById('other-team-info').style.display !== 'none') {
             displayOtherTeamInfo(otherTeamsDropdown.value);
         }

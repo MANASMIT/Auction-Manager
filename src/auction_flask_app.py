@@ -32,7 +32,11 @@ def create_flask_app(auction_app_ref):
     flask_app.config['SECRET_KEY'] = os.urandom(24)
     flask_app.config['TEMPLATES_AUTO_RELOAD'] = True
 
-    socketio = SocketIO(flask_app, async_mode='threading', cors_allowed_origins="*")
+    socketio = SocketIO(flask_app, 
+                    async_mode='threading', 
+                    cors_allowed_origins="*",
+                    logger=False,         # Turn on for debugging 
+                    engineio_logger=False)# Turn on for debugging
     flask_socketio_instance = socketio
 
     # --- Now Define Routes ---

@@ -12,7 +12,6 @@ import threading
 import webbrowser
 import time # For shutdown check
 import secrets # For generating secure tokens
-import clipboard # For copy to clipboard, pip install clipboard
 
 # Conditional imports for Flask and SocketIO
 try:
@@ -505,11 +504,21 @@ class ManagerLinksWindow(tk.Toplevel):
 
     def _copy_to_clipboard(self, text_to_copy):
         try:
-            clipboard.copy(text_to_copy) # Use the clipboard library
+            self.clipboard_clear()  # Clear the clipboard first
+            self.clipboard_append(text_to_copy)  # Append the new text
+            self.update_idletasks() # Optional: ensures the clipboard is updated immediately on some systems
             messagebox.showinfo("Copied", f"Link copied to clipboard:\n{text_to_copy}", parent=self)
-        except Exception as e:
-            messagebox.showerror("Copy Error", f"Could not copy to clipboard: {e}\nMake sure you have a clipboard manager (e.g., xclip or xsel on Linux).", parent=self)
-            print(f"Clipboard copy error: {e}")
+        except tk.TclError as e: # Catch Tkinter-specific errors
+            # This error can happen if a clipboard manager isn't available (e.g., on some minimal Linux setups)
+            messagebox.showerror("Clipboard Error", 
+                                 f"Could not copy to clipboard using Tkinter: {e}\n"
+                                 "Ensure a clipboard manager (like xclip or xsel on Linux) is running, "
+                                 "or try installing the 'pyperclip' library as an alternative.", 
+                                 parent=self)
+            print(f"Tkinter clipboard error: {e}")
+        except Exception as e: # Catch any other unexpected errors
+            messagebox.showerror("Copy Error", f"An unexpected error occurred while copying: {e}", parent=self)
+            print(f"Unexpected clipboard copy error: {e}")
 
 
     def update_links(self, team_access_links):
@@ -996,7 +1005,11 @@ class AuctionApp(tk.Frame):
             # Add sold_ticker_items if needed, transformed for web
         }
         # print(f"DEBUG UI: Emitting full_state_update: {full_state}")
-        self.socketio_instance.emit('full_state_update', full_state, namespace='/presenter')
+
+        if self.manager_access_enabled:
+            self.socketio_instance.emit('full_state_update', full_state, namespace='/manager')
+        if self.presenter_active:
+            self.socketio_instance.emit('full_state_update', full_state, namespace='/presenter')
 
     def _get_web_path(self, local_path):
         if not local_path:
