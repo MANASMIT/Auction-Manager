@@ -11,7 +11,7 @@ from datetime import datetime
 from auction_engine import (
     AuctionEngine, AuctionError, InsufficientFundsError, 
     ItemNotSelectedError, InvalidBidError, NoBidsError, 
-    LogFileError, InitializationError
+    LogFileError, InitializationError, generate_template_csv_content
 )
 
 # Constants from engine if needed by UI directly (e.g. LogViewer parsing)
@@ -104,14 +104,84 @@ class FileSelectPage(tk.Frame):
     def __init__(self, master, on_file_loaded_data, title="CREATE NEW AUCTION"):
         super().__init__(master, bg=THEME_BG_PRIMARY)
         self.on_file_loaded_data = on_file_loaded_data
-        container = tk.Frame(self, bg=THEME_BG_PRIMARY, padx=50, pady=30); container.pack(expand=True, fill="both")
+        container = tk.Frame(self, bg=THEME_BG_PRIMARY, padx=50, pady=30)
+        container.pack(expand=True, fill="both")
+
         tk.Label(container, text=title, font=get_font(28, "bold"), bg=THEME_BG_PRIMARY, fg=THEME_ACCENT_PRIMARY).pack(pady=(0, 40))
+
         tk.Label(container, text="Auction Name:", font=get_font(14), bg=THEME_BG_PRIMARY, fg=THEME_TEXT_PRIMARY).pack(pady=(10,0), anchor="w")
         self.auction_name_entry = tk.Entry(container, font=get_font(14), width=35, relief=tk.FLAT, bd=2, insertbackground=THEME_TEXT_PRIMARY, bg=THEME_BG_SECONDARY, fg=THEME_TEXT_PRIMARY, highlightthickness=1, highlightbackground=THEME_BORDER_COLOR_LIGHT, highlightcolor=THEME_ACCENT_PRIMARY)
-        self.auction_name_entry.insert(0, "MyAuction"); self.auction_name_entry.pack(pady=5, ipady=8, fill=tk.X)
-        tk.Label(container, text="Select Initial Setup File (.csv):", font=get_font(14), bg=THEME_BG_PRIMARY, fg=THEME_TEXT_PRIMARY).pack(pady=(20,0), anchor="w")
+        self.auction_name_entry.insert(0, "MyAuction")
+        self.auction_name_entry.pack(pady=5, ipady=8, fill=tk.X)
+
+        # --- CSV Template Hyperlink ---
+        csv_info_frame = tk.Frame(container, bg=THEME_BG_PRIMARY)
+        csv_info_frame.pack(pady=(20,0), fill=tk.X)
+
+        tk.Label(csv_info_frame, text="Select Initial Setup File (.csv):", font=get_font(14), bg=THEME_BG_PRIMARY, fg=THEME_TEXT_PRIMARY).pack(side=tk.LEFT, anchor="w")
+
+        template_hyperlink_font = get_font(10, slant="italic") # Basic font
+        self.template_link_button = tk.Button(
+            csv_info_frame,
+            text="View .csv format help",
+            font=template_hyperlink_font,
+            fg=THEME_ACCENT_PRIMARY, # Blue color like a link
+            bg=THEME_BG_PRIMARY,    # Match background
+            relief=tk.FLAT,
+            bd=0,
+            cursor="hand2",
+            activeforeground=HOVER_BG_COLOR_PRIMARY, # Darker blue on click
+            activebackground=THEME_BG_PRIMARY,
+            command=self._generate_and_save_template
+        )
+        self.template_link_button.pack(side=tk.RIGHT, padx=(10,0), anchor="e")
+
+        # Simple hover effect for underline (optional but nice for hyperlinks)
+        default_font_no_underline = get_font(10, slant="italic")
+        hover_font_underline = get_font(10, slant="italic", weight="normal") # Underline doesn't work well with italic in some Tk versions
+                                                                             # Let's try a subtle weight change or color change
+        hover_font_underline_actual = tkFont.Font(family=default_font_no_underline.cget("family"),
+                                                  size=default_font_no_underline.cget("size"),
+                                                  slant=default_font_no_underline.cget("slant"),
+                                                  underline=True)
+
+
+        def on_link_enter(e):
+            self.template_link_button.config(font=hover_font_underline_actual, fg=HOVER_BG_COLOR_PRIMARY)
+        def on_link_leave(e):
+            self.template_link_button.config(font=default_font_no_underline, fg=THEME_ACCENT_PRIMARY)
+
+        self.template_link_button.bind("<Enter>", on_link_enter)
+        self.template_link_button.bind("<Leave>", on_link_leave)
+        # --- End CSV Template Hyperlink ---
+
         StyledButton(container, text="BROWSE SETUP FILE", command=self.browse_csv_file, font=get_font(12, "bold"), bg=SECONDARY_BUTTON_BG, fg=SECONDARY_BUTTON_FG, pady=10, padx=15).pack(pady=10, fill=tk.X)
 
+    def _generate_and_save_template(self):
+        template_content = generate_template_csv_content()
+        filename = "auction_setup_template.csv"
+        filepath = os.path.join(os.getcwd(), filename)
+
+        try:
+            with open(filepath, "w", newline='', encoding='utf-8') as f:
+                f.write(template_content)
+            messagebox.showinfo(
+                "Template Generated",
+                f"'{filename}' has been created in your current working directory:\n\n{os.getcwd()}",
+                parent=self
+            )
+        except IOError as e:
+            messagebox.showerror(
+                "Error Saving Template",
+                f"Could not save the template file '{filename}':\n{e}",
+                parent=self
+            )
+        except Exception as e:
+            messagebox.showerror(
+                "Unexpected Error",
+                f"An unexpected error occurred while generating the template:\n{e}",
+                parent=self
+            )
     def browse_csv_file(self):
         file_path = filedialog.askopenfilename(title="Select Setup CSV File", filetypes=[("CSV files", "*.csv")])
         if not file_path: return

@@ -568,7 +568,7 @@ def generate_template_csv_content():
 
 {LOG_SECTION_TEAMS_INITIAL}
 Team name,Team starting money
-# ^ This line above is the REQUIRED header for the teams section. Do not change its format.
+# ^ This line above is the REQUIRED header for the all sections. Do not change its format.
 # Add your team data below, one team per line:
 Team Alpha,5000
 Team Bravo,4800
@@ -576,7 +576,7 @@ Team Charlie,5200
 
 {LOG_SECTION_PLAYERS_INITIAL}
 Player name,Bid value
-# ^ This line above is the REQUIRED header for the players section. Do not change its format.
+# ^ This line above is the REQUIRED header for the all sections. Do not change its format.
 # Add your player data below, one player per line:
 Player One,100
 Player Two,80
@@ -588,8 +588,7 @@ Player Six (ALL),110
 {LOG_SECTION_BID_INCREMENT_RULES}
 # This section is optional. If omitted, or if all rules are commented out,
 # default bid increments will be used by the auction engine.
-# If you want to define custom bid increments, uncomment the example lines
-# below and adjust their values, or add your own rules.
+# ---
 #Threshold,Increment 
 #0,10
 #100,20
