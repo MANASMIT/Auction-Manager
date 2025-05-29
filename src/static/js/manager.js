@@ -63,26 +63,96 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     socket.on('full_state_update', (data) => {
-        // // DETAILED LOGGING FOR THE RECEIVED DATA
-        // console.log(`Manager ${MY_TEAM_NAME}: Received full_state_update. Raw data:`, data);
-        // console.log(`Manager ${MY_TEAM_NAME}: data.current_item:`, data.current_item);
-        // console.log(`Manager ${MY_TEAM_NAME}: data.is_item_active:`, data.is_item_active);
-        // if (data.current_item) {
-        //     console.log(`Manager ${MY_TEAM_NAME}: data.current_item.name:`, data.current_item.name);
-        // }
+        console.log(`Manager ${MY_TEAM_NAME}: ---- START full_state_update ----`);
+        console.log(`Manager ${MY_TEAM_NAME}: Raw data received:`, JSON.parse(JSON.stringify(data))); // Deep copy for logging
 
-
-        updateCurrentItemDisplay(data.current_item); // This is from common.js
+        updateCurrentItemDisplay(data.current_item);
         updateBiddingStatusDisplay(data.bid_status);
 
-        // Check the condition explicitly
+        const nextBidValueEl = document.getElementById('next-bid-value');
+        const moneyLeftEl = document.getElementById('money-left-after-bid');
+
+        let nextBid = null;
+        let currentItemExistsAndActive = false;
+
+        // 1. Check current item and active status
         if (data.current_item && data.current_item.name && data.is_item_active) {
-            bidButton.disabled = false; // Enable the button if item is active and has a name
+            currentItemExistsAndActive = true;
             currentItemNameGlobal = data.current_item.name;
+            console.log(`Manager ${MY_TEAM_NAME}: Step 1: currentItemExistsAndActive = true. Item: ${currentItemNameGlobal}`);
         } else {
-            bidButton.disabled = true; // Disable the button if no item or not active
             currentItemNameGlobal = null;
+            console.log(`Manager ${MY_TEAM_NAME}: Step 1: currentItemExistsAndActive = false.`);
+            console.log(`Manager ${MY_TEAM_NAME}:   data.current_item:`, data.current_item);
+            console.log(`Manager ${MY_TEAM_NAME}:   data.is_item_active:`, data.is_item_active);
         }
+
+        // 2. Safely get the next potential bid amount
+        if (currentItemExistsAndActive) { // Only proceed if item is active
+            if (data.bid_status && typeof data.bid_status.next_potential_bid === 'number') {
+                nextBid = data.bid_status.next_potential_bid;
+                console.log(`Manager ${MY_TEAM_NAME}: Step 2: nextBid successfully set to: ${nextBid}`);
+            } else {
+                console.warn(`Manager ${MY_TEAM_NAME}: Step 2: next_potential_bid is missing or not a number for active item '${currentItemNameGlobal}'.`);
+                console.warn(`Manager ${MY_TEAM_NAME}:   data.bid_status received:`, data.bid_status);
+                if(data.bid_status){
+                    console.warn(`Manager ${MY_TEAM_NAME}:   typeof data.bid_status.next_potential_bid:`, typeof data.bid_status.next_potential_bid);
+                }
+            }
+        } else {
+            console.log(`Manager ${MY_TEAM_NAME}: Step 2: Skipped nextBid calculation as currentItemExistsAndActive is false.`);
+        }
+
+
+        // 3. Update UI for Next Bid and Money Left
+        if (nextBid !== null && nextBidValueEl) {
+            nextBidValueEl.textContent = `₹${nextBid.toLocaleString()}`;
+            console.log(`Manager ${MY_TEAM_NAME}: Step 3: Updated 'next-bid-value' UI to ₹${nextBid.toLocaleString()}`);
+
+            const myTeamData = allTeamsDataCache[MY_TEAM_NAME];
+            if (myTeamData && typeof myTeamData.money === 'number' && moneyLeftEl) {
+                const moneyLeft = myTeamData.money - nextBid;
+                moneyLeftEl.textContent = `₹${moneyLeft.toLocaleString()}`;
+                moneyLeftEl.style.color = moneyLeft < 0 ? 'red' : '';
+                console.log(`Manager ${MY_TEAM_NAME}: Step 3: Updated 'money-left-after-bid' UI. My Money: ${myTeamData.money}, Next Bid: ${nextBid}, Left: ${moneyLeft}`);
+            } else if (moneyLeftEl) {
+                moneyLeftEl.textContent = '--';
+                console.warn(`Manager ${MY_TEAM_NAME}: Step 3: Could not update 'money-left-after-bid'.`);
+                if (!myTeamData) console.warn(`Manager ${MY_TEAM_NAME}:     Reason: MyTeamData not found in cache.`);
+                else if (typeof myTeamData.money !== 'number') console.warn(`Manager ${MY_TEAM_NAME}:     Reason: MyTeamData.money is not a number: `, myTeamData.money);
+            }
+        } else {
+            if (nextBidValueEl) nextBidValueEl.textContent = '--';
+            if (moneyLeftEl) moneyLeftEl.textContent = '--';
+            console.log(`Manager ${MY_TEAM_NAME}: Step 3: UI for next bid/money left set to '--' because nextBid is null or elements missing.`);
+        }
+
+        // 4. Determine Bid Button State
+        let enableBidButton = false;
+        if (currentItemExistsAndActive && nextBid !== null) {
+            const myTeamCurrentMoney = (allTeamsDataCache[MY_TEAM_NAME] && typeof allTeamsDataCache[MY_TEAM_NAME].money === 'number')
+                                       ? allTeamsDataCache[MY_TEAM_NAME].money
+                                       : -Infinity; 
+
+            console.log(`Manager ${MY_TEAM_NAME}: Step 4: Affordability check. MyMoney: ${myTeamCurrentMoney}, NextBid: ${nextBid}`);
+            if (myTeamCurrentMoney >= nextBid) {
+                enableBidButton = true;
+                console.log(`Manager ${MY_TEAM_NAME}: Step 4: Team CAN afford the bid.`);
+            } else {
+                console.log(`Manager ${MY_TEAM_NAME}: Step 4: Team CANNOT afford next bid of ₹${nextBid.toLocaleString()} with funds ₹${myTeamCurrentMoney !== -Infinity ? myTeamCurrentMoney.toLocaleString() : 'Unknown'}.`);
+            }
+        } else {
+            console.log(`Manager ${MY_TEAM_NAME}: Step 4: Bid button cannot be enabled. currentItemExistsAndActive: ${currentItemExistsAndActive}, nextBid: ${nextBid}`);
+        }
+        
+        if (bidButton) {
+            bidButton.disabled = !enableBidButton;
+            console.log(`Manager ${MY_TEAM_NAME}: Step 4: Final bidButton.disabled state: ${bidButton.disabled}`);
+        } else {
+            console.warn(`Manager ${MY_TEAM_NAME}: Step 4: bidButton element not found!`);
+        }
+        
+        console.log(`Manager ${MY_TEAM_NAME}: ---- END full_state_update ----`);
 
         fetchMyTeamStatus(); 
         if (otherTeamsDropdown && otherTeamsDropdown.value && document.getElementById('other-team-info').style.display !== 'none') {

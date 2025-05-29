@@ -32,14 +32,17 @@
                 <img id="item-photo" src="#" alt="Player Photo" style="display:none;">
                 <h3 id="item-name"></h3>
                 <p>Base Bid: <span id="item-base-bid"></span></p>
+                <!-- Existing Bidding Status info is in its own section -->
                 <button id="bid-button" disabled>Place Bid for {{ my_team_name }}</button>
+                <p>If you bid, next bid will be: <strong id="next-bid-value">--</strong></p> <!-- NEW -->
+                <p>Money left after this bid: <strong id="money-left-after-bid">--</strong></p> <!-- NEW -->
                 <p id="bid-feedback" class="feedback-message"></p>
             </div>
         </section>
 
         <section id="bidding-status-section">
             <h2>Bidding Status</h2>
-            <div id="bid-info" class="card">
+            <div id="bid-info" class.card">
                 <p>Current Bid: <span id="current-bid-amount">₹0</span></p>
                 <p>Highest Bidder: <span id="highest-bidder-name">--</span></p>
                 <img id="bidder-logo" src="#" alt="Bidder Logo" style="display:none;">

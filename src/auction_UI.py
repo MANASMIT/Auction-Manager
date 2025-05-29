@@ -74,8 +74,6 @@ SECONDARY_BUTTON_FG = THEME_TEXT_PRIMARY
 HOVER_BG_COLOR_PRIMARY = "#007fcc"
 HOVER_BG_COLOR_SECONDARY = THEME_HIGHLIGHT_BG
 
-# --- Helper Functions (get_font, apply_hover_effect, StyledButton) ---
-# ... (These remain the same as your current file) ...
 def get_font(size, weight="normal", slant="roman"):
     family_to_try = FONT_FAMILY_PRIMARY
     try:
@@ -131,9 +129,6 @@ class StyledButton(tk.Button):
     def _on_enter(self, e): self.config(background=self.hover_bg, foreground=self.hover_fg)
     def _on_leave(self, e): self.config(background=self.original_bg, foreground=self.original_fg)
 
-
-# --- Page Classes (InitialPage, FileSelectPage, FileSelectPageForResume, LogViewerDialog) ---
-# ... (These remain largely the same as your current file, ensure FileSelectPage parses image paths) ...
 class InitialPage(tk.Frame):
     def __init__(self, master, on_new_auction_selected, on_resume_auction_selected):
         super().__init__(master, bg=THEME_BG_PRIMARY)
@@ -363,7 +358,6 @@ class LogViewerDialog(tk.Toplevel):
         if selected_data and messagebox.askyesno("Confirm Load", f"Load state from No. {selected_data['serial_no']}?", parent=self, icon='warning'):
             self.load_state_callback(selected_data['json'], selected_data['ts'], selected_data['action'], selected_data['serial_no']); self.destroy()
 
-
 class TopMenuBar(tk.Frame):
     def __init__(self, master, app_controller, **kwargs):
         super().__init__(master, bg=THEME_BG_CARD, **kwargs)
@@ -455,8 +449,6 @@ class TopMenuBar(tk.Frame):
         # For now, just having it prevents the AttributeError.
         # print("TopMenuBar: ManagerLinksWindow reported closed (hidden).")
         pass
-
-# auction_UI.py
 
 class ManagerLinksWindow(tk.Toplevel):
     def __init__(self, master, team_access_links, base_url):
@@ -587,7 +579,10 @@ class AuctionApp(tk.Frame):
         self.manager_access_enabled = False # New state for manager view
         self.team_manager_access_tokens = {} # {team_name: token}
         self.manager_links_window_instance = None
-
+        self.shutdown_overlay = None # For the "Please Wait" overlay
+        self.shutdown_status_var = tk.StringVar() # For updating overlay message
+        
+        
         self._setup_ui()
         self.refresh_all_ui_displays() # Initial display update
 
@@ -720,43 +715,6 @@ class AuctionApp(tk.Frame):
                  self.menu_bar.presenter_toggle_btn_text.set("Start Presenter Webview")
             self.socketio_instance = None # Clear instance
 
-    def _stop_flask_server(self):
-        if not self.flask_server_running: # Removed socketio_instance check as it might be None but server runs
-            messagebox.showinfo("Webview Info", "Webview server is not running.", parent=self)
-            return False
-        
-        print("Attempting to stop Flask-SocketIO server via HTTP request...")
-        try:
-            # Send a POST request to the shutdown route
-            response = requests.post(f"http://localhost:{self.flask_port}/shutdown_server_please", timeout=2)
-            print(f"Shutdown request response: {response.status_code} - {response.text}")
-        except requests.exceptions.RequestException as e:
-            print(f"Could not connect to Flask server to shut it down: {e}")
-            # Proceed with thread joining as a fallback, though it might not be clean.
-
-        self.stop_flask_event.set() 
-
-        if self.flask_thread and self.flask_thread.is_alive():
-            print("Waiting for Flask thread to join...")
-            self.flask_thread.join(timeout=5) 
-            if self.flask_thread.is_alive():
-                print("Warning: Flask thread did not stop cleanly after timeout.")
-            else:
-                print("Flask thread joined successfully.")
-        
-        self.flask_server_running = False
-        # Update both buttons if they exist in menu_bar
-        if hasattr(self.menu_bar, 'presenter_toggle_btn_text'):
-            self.menu_bar.presenter_toggle_btn_text.set("Start Presenter Webview")
-        if hasattr(self.menu_bar, 'manager_toggle_btn_text'):
-            self.menu_bar.manager_toggle_btn_text.set("Enable Manager Access")
-
-        messagebox.showinfo("Webview Info", "Webview server has been signaled to stop.", parent=self)
-        self.socketio_instance = None # These should be cleared
-        self.flask_app_instance = None
-        self.flask_thread = None # Clear the thread object
-        return True
-
     def _handle_load_selected_state_from_history(self, json_state_string, loaded_timestamp, loaded_action_desc, loaded_serial_no):
         success, message = self.engine.load_state_from_json_string(json_state_string, loaded_timestamp, loaded_action_desc, loaded_serial_no)
         if success:
@@ -866,7 +824,6 @@ class AuctionApp(tk.Frame):
             self.manager_links_window_instance = ManagerLinksWindow(self, self.team_manager_access_tokens, base_url)
             self.manager_links_window_instance.show()
 
-    # In on_app_frame_closing:
     def on_app_frame_closing(self):
         if self.manager_links_window_instance and self.manager_links_window_instance.winfo_exists():
             self.manager_links_window_instance.destroy() # Properly destroy the Toplevel
@@ -947,7 +904,6 @@ class AuctionApp(tk.Frame):
         self.bid_status_label.config(text=status["status_text"], fg=fg_color)
         self.auction_name_label.config(text=self.engine.get_auction_name().upper())
 
-
     def refresh_all_ui_displays(self):
         # This method is called from the main Tkinter thread.
         self.update_team_cards_display()
@@ -961,19 +917,21 @@ class AuctionApp(tk.Frame):
              self._emit_full_state_to_webview()
 
     def _emit_full_state_to_webview(self):
-        """Emits the entire relevant auction state to the presenter webview via SocketIO."""
         if not self.socketio_instance or not self.flask_server_running:
+            # print("DEBUG UI: SocketIO not ready or server not running, cannot emit.") # Keep for debugging if needed
             return
 
-        # Prepare data for webview (similar to what _update_presenter_full_state did)
         auction_name = self.engine.get_auction_name()
         current_item_data = None
+        # Initialize bid_status_data WITH next_potential_bid as None initially
         bid_status_data = {
             'highest_bidder_name': None,
-            'bidder_logo_path': None, # Web-friendly path
+            'bidder_logo_path': None,
             'bid_amount': 0,
-            'highest_bidder_exists': False
+            'highest_bidder_exists': False,
+            'next_potential_bid': None
         }
+        next_potential_bid_calculated = None # Use a temporary variable for clarity
 
         if self.engine.bidding_active and self.engine.current_item_name:
             player_data_engine = self.engine.players_initial_info.get(self.engine.current_item_name)
@@ -985,31 +943,49 @@ class AuctionApp(tk.Frame):
                 'base_bid': self.engine.current_item_base_bid
             }
 
+            # Populate existing bid_status fields
             if self.engine.highest_bidder_name:
                 team_data_engine = self.engine.teams_data.get(self.engine.highest_bidder_name)
                 bidder_logo_web_path = self._get_web_path(team_data_engine.get(TEAM_LOGO_PATH_KEY)) if team_data_engine else None
-                bid_status_data = {
-                    'highest_bidder_name': self.engine.highest_bidder_name,
-                    'bidder_logo_path': bidder_logo_web_path,
-                    'bid_amount': self.engine.current_bid_amount,
-                    'highest_bidder_exists': True
-                }
+                bid_status_data['highest_bidder_name'] = self.engine.highest_bidder_name
+                bid_status_data['bidder_logo_path'] = bidder_logo_web_path
+                bid_status_data['bid_amount'] = self.engine.current_bid_amount
+                bid_status_data['highest_bidder_exists'] = True
             else: # No highest bidder, but item is active
                 bid_status_data['bid_amount'] = self.engine.current_bid_amount # Opening bid
+                bid_status_data['highest_bidder_exists'] = False
+                # Ensure other fields are explicitly None if not set above
+                bid_status_data['highest_bidder_name'] = None
+                bid_status_data['bidder_logo_path'] = None
+
+
+            # Calculate and add next_potential_bid
+            next_potential_bid_calculated = self.engine.get_next_potential_bid_amount()
+            bid_status_data['next_potential_bid'] = next_potential_bid_calculated # Assign it here
+
+        # If not (self.engine.bidding_active and self.engine.current_item_name), 
+        # current_item_data remains None and bid_status_data['next_potential_bid'] remains None (from initialization)
 
         full_state = {
             'auction_name': auction_name,
             'current_item': current_item_data,
-            'bid_status': bid_status_data,
+            'bid_status': bid_status_data, # This now *always* contains next_potential_bid (even if null)
             'is_item_active': bool(self.engine.bidding_active and self.engine.current_item_name)
-            # Add sold_ticker_items if needed, transformed for web
         }
-        # print(f"DEBUG UI: Emitting full_state_update: {full_state}")
-
-        if self.manager_access_enabled:
-            self.socketio_instance.emit('full_state_update', full_state, namespace='/manager')
-        if self.presenter_active:
-            self.socketio_instance.emit('full_state_update', full_state, namespace='/presenter')
+        
+        try:
+            if self.presenter_active:
+                # print(f"PYTHON DEBUG (Presenter Emit): bid_status being sent: {bid_status_data}") # Optional debug
+                self.socketio_instance.emit('full_state_update', full_state, namespace='/presenter')
+            
+            if self.manager_access_enabled:
+                print(f"PYTHON DEBUG (Manager Emit): bid_status being sent: {bid_status_data}") # KEEP THIS FOR VERIFICATION
+                self.socketio_instance.emit('full_state_update', full_state, namespace='/manager')
+            
+        except Exception as e:
+            print(f"ERROR emitting full state to webview: {e}")
+            import traceback
+            traceback.print_exc()
 
     def _get_web_path(self, local_path):
         if not local_path:
@@ -1040,7 +1016,6 @@ class AuctionApp(tk.Frame):
         if warnings:
             full_warning_message = context_message + "\n - " + "\n - ".join(warnings)
             messagebox.showwarning("Auction Engine Notice", full_warning_message, parent=self)
-
 
     def ui_select_item(self, player_name):
         passed_item_name_for_event = None
@@ -1197,13 +1172,131 @@ class AuctionApp(tk.Frame):
                 self.socketio_instance.emit('item_passed_event', {'item_name': passed_item_name_for_event}, namespace='/manager')
             self._check_and_display_engine_warnings()
 
-    def on_app_frame_closing(self):
-        if self.engine: self.engine.close_logger()
-        if self.flask_server_running:
-            print("Attempting to stop Flask server on app close...")
-            self._stop_flask_server()
-        print("AuctionApp closed.")
+    def _create_shutdown_overlay(self, initial_message="Please Wait: Initializing shutdown..."):
+        if self.shutdown_overlay and self.shutdown_overlay.winfo_exists():
+            self.shutdown_overlay.destroy() # Destroy if one already exists
 
+        self.shutdown_overlay = tk.Toplevel(self)
+        self.shutdown_overlay.withdraw() # Hide initially
+        self.shutdown_overlay.overrideredirect(True) # Remove window decorations (title bar, close button)
+        self.shutdown_overlay.attributes("-alpha", 0.85) # Semi-transparent
+        self.shutdown_overlay.attributes("-topmost", True) # Keep on top
+
+        # Calculate position to center it over the main app window
+        self.master.update_idletasks() # Ensure main window dimensions are current
+        main_app_width = self.master.winfo_width()
+        main_app_height = self.master.winfo_height()
+        main_app_x = self.master.winfo_x()
+        main_app_y = self.master.winfo_y()
+
+        overlay_width = 350
+        overlay_height = 100
+        x_pos = main_app_x + (main_app_width // 2) - (overlay_width // 2)
+        y_pos = main_app_y + (main_app_height // 2) - (overlay_height // 2)
+
+        self.shutdown_overlay.geometry(f"{overlay_width}x{overlay_height}+{x_pos}+{y_pos}")
+        self.shutdown_overlay.configure(bg=THEME_BG_CARD) # Or a distinct color
+
+        self.shutdown_status_var.set(initial_message)
+        status_label = tk.Label(self.shutdown_overlay,
+                                textvariable=self.shutdown_status_var,
+                                font=get_font(14, "bold"),
+                                bg=THEME_BG_CARD,
+                                fg=THEME_TEXT_ACCENT,
+                                wraplength=overlay_width - 20)
+        status_label.pack(expand=True, fill=tk.BOTH, padx=10, pady=10)
+        
+        self.shutdown_overlay.deiconify() # Show it
+        self.shutdown_overlay.grab_set() # Make it modal to block main UI interaction
+        self.update_idletasks() # Process display events
+
+    def _update_shutdown_status(self, message):
+        if self.shutdown_overlay and self.shutdown_overlay.winfo_exists():
+            self.shutdown_status_var.set(f"Please Wait: {message}")
+            self.shutdown_overlay.update_idletasks() # Refresh the label
+
+    def _destroy_shutdown_overlay(self):
+        if self.shutdown_overlay and self.shutdown_overlay.winfo_exists():
+            self.shutdown_overlay.grab_release()
+            self.shutdown_overlay.destroy()
+            self.shutdown_overlay = None
+        self.update_idletasks()
+
+    def _stop_flask_server(self):
+        if not self.flask_server_running:
+            messagebox.showinfo("Webview Info", "Webview server is not running.", parent=self)
+            return False
+        
+        self._create_shutdown_overlay("Signaling server to stop...")
+        self.update_idletasks()
+
+        print("Attempting to stop Flask-SocketIO server via HTTP request...")
+        shutdown_success = False
+        try:
+            self._update_shutdown_status("Sending shutdown request...")
+            response = requests.post(f"http://localhost:{self.flask_port}/shutdown_server_please", timeout=3) # Increased timeout slightly
+            print(f"Shutdown request response: {response.status_code} - {response.text}")
+            if response.status_code == 200:
+                shutdown_success = True # Assume server got the message
+        except requests.exceptions.RequestException as e:
+            print(f"Could not connect to Flask server to shut it down: {e}")
+            self._update_shutdown_status("Server connection error. Trying to join thread...")
+        
+        self.stop_flask_event.set() 
+
+        if self.flask_thread and self.flask_thread.is_alive():
+            self._update_shutdown_status("Waiting for server thread (max 5s)...")
+            print("Waiting for Flask thread to join...")
+            self.flask_thread.join(timeout=5) 
+            if self.flask_thread.is_alive():
+                print("Warning: Flask thread did not stop cleanly after timeout.")
+                self._update_shutdown_status("Server thread did not exit cleanly.")
+                # Consider more forceful termination if absolutely necessary, but it's risky
+            else:
+                print("Flask thread joined successfully.")
+                self._update_shutdown_status("Server thread stopped.")
+        
+        self.flask_server_running = False
+        if hasattr(self.menu_bar, 'presenter_toggle_btn_text'):
+            self.menu_bar.presenter_toggle_btn_text.set("Start Presenter Webview")
+        if hasattr(self.menu_bar, 'manager_toggle_btn_text'):
+            self.menu_bar.manager_toggle_btn_text.set("Enable Manager Access")
+
+        self.socketio_instance = None
+        self.flask_app_instance = None
+        self.flask_thread = None
+        
+        self._destroy_shutdown_overlay() # Remove overlay AFTER all operations
+        messagebox.showinfo("Webview Info", "Webview server has been stopped.", parent=self)
+        return True
+
+    def on_app_frame_closing(self): # This is called when the main Tkinter window's X is clicked
+        if self.engine:
+            self.engine.close_logger()
+
+        if self.flask_server_running:
+            # Don't show messagebox here if we're closing, just try to stop
+            print("Attempting to stop Flask server on app close...")
+            self._create_shutdown_overlay("Closing application: Shutting down web server...")
+            self.update_idletasks() # Make sure overlay shows
+
+            # We need to run the server stop in a way that doesn't block the UI thread
+            # from processing the destroy() call.
+            # However, _stop_flask_server already involves waiting for a thread.
+            # For graceful shutdown, this blocking might be unavoidable to some extent.
+            
+            self._stop_flask_server() # This will handle its own overlay updates
+
+            # _destroy_shutdown_overlay() is called at the end of _stop_flask_server
+        else:
+            # If server not running, no overlay needed for server part
+            pass 
+        
+        if self.manager_links_window_instance and self.manager_links_window_instance.winfo_exists():
+            self.manager_links_window_instance.destroy()
+        
+        print("AuctionApp closed. Destroying root window.")
+        # The root.destroy() is called by the main() function's on_root_close
 
 def main():
     # ... (No changes from your provided code, includes handle_resume_auction_logic) ...

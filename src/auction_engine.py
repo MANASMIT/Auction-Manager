@@ -191,7 +191,6 @@ class AuctionEngine:
             if rules_list_of_tuples is not None : # If it was explicitly not None, it was bad format
                  self._add_error("Custom bid increment rules not in expected list format; using defaults.")
 
-
     def load_auction_from_log(self, log_filepath):
         self._clear_state()
         self.log_filepath = log_filepath
@@ -601,6 +600,26 @@ class AuctionEngine:
             item_display_name = "-- NONE SELECTED --"; status_text = "WAITING"; status_color_key = "SECONDARY_TEXT"
         return { "item_display_name": item_display_name, "status_text": status_text, "status_color_key": status_color_key, "bidding_active": self.bidding_active }
     def get_log_filepath(self): return self.log_filepath
+
+    def get_next_potential_bid_amount(self):
+        if not self.bidding_active or not self.current_item_name:
+            return None # Or 0, depending on how you want to handle no active item
+
+        # This is the same logic as _calculate_next_bid_amount
+        # but we don't want to *change* current_bid_amount here, just calculate
+        current_bid_for_calc = self.current_bid_amount
+        increment_to_use = 1 # Default if no rules match or bid is very low
+        
+        # self.bid_increment_rules is sorted high-to-low threshold
+        for threshold, increment_val in self.bid_increment_rules:
+            if current_bid_for_calc >= threshold:
+                increment_to_use = increment_val
+                break
+        
+        if self.highest_bidder_name: # If there's a bid, next bid is current + increment
+            return current_bid_for_calc + increment_to_use
+        else: # If no bids yet (item just opened), the "next" bid is the opening bid
+            return current_bid_for_calc
 
 def generate_template_csv_content():
     """Generates the content for a template CSV file that works directly
