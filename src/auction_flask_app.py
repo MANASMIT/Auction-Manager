@@ -93,26 +93,33 @@ def create_flask_app(auction_app_ref):
     # --- API Routes for dynamic data loading by JS ---
     @flask_app.route('/api/all_teams_status')
     def api_all_teams_status():
-        # ... (rest of your API route)
         if not tk_auction_app_instance: return jsonify({"error": "Auction not ready"}), 500
         
         teams_status = {}
-        engine_teams = tk_auction_app_instance.engine.teams_data
-        for team_name, data in engine_teams.items():
-            teams_status[team_name] = {
-                "money": data["money"],
-                "logo_path": tk_auction_app_instance._get_web_path(team_name, is_logo=True),
-                "inventory": { 
-                    p_name: p_price 
-                    for p_name, p_price in data.get("inventory", {}).items()
+        engine = tk_auction_app_instance.engine  # Get a reference to the engine for easier access
+        engine_teams = engine.teams_data
+        engine_players_initial = engine.players_initial_info # Get initial player info
+        for team_name, team_data in engine_teams.items():
+            inventory_with_base_bid = {}
+            for player_name_in_inventory, sold_price in team_data.get("inventory", {}).items():
+                player_initial_detail = engine_players_initial.get(player_name_in_inventory)
+                base_bid = player_initial_detail.get("base_bid") if player_initial_detail else None # Get base_bid
+
+                inventory_with_base_bid[player_name_in_inventory] = {
+                    "sold_price": sold_price,
+                    "base_bid": base_bid
                 }
+
+            teams_status[team_name] = {
+                "money": team_data["money"],
+                "logo_path": tk_auction_app_instance._get_web_path(team_name, is_logo=True),
+                "inventory": inventory_with_base_bid # Use the new inventory structure
             }
         return jsonify(teams_status)
 
 
     @flask_app.route('/api/player_details/<player_name>')
     def api_player_details(player_name):
-        # ... (rest of your API route)
         if not tk_auction_app_instance: return jsonify({"error": "Auction not ready"}), 500
         player_info = tk_auction_app_instance.engine.players_initial_info.get(player_name)
         if not player_info:

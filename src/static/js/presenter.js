@@ -93,7 +93,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
         return teamCard;
     }
-    
 
     function populateTeamsGrid(teams) {
         const leftContainer = document.getElementById('teams-container-left');
@@ -181,7 +180,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-
     function updateCurrentItemDisplay(itemData) {
         const noItemMsg = document.getElementById('no-item-message');
         const playerCard = document.getElementById('current-player-card');
@@ -220,7 +218,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
         currentDisplayedItemName = newItemName;
     }
-    
 
     function updateBiddingStatusDisplay(bidStatus) {
         if (bidStatus && typeof bidStatus.bid_amount === 'number') {
@@ -354,7 +351,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 5000);
     }
     
-
     function updateSoldTicker(soldData) {
         const tickerList = document.getElementById('ticker-list');
         const newItem = document.createElement('li');
@@ -397,39 +393,47 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function showTeamModal(teamName, teamsDataRef) {
-        const team = teamsDataRef[teamName];
-        if (!team) {
-            console.error("Team data not found for modal:", teamName);
-            return;
-        }
+    function showTeamModal(teamName, teamsData) {
+        const team = teamsData[teamName];
         const modal = document.getElementById('team-modal');
-        
+    
         document.getElementById('modal-team-name').textContent = teamName;
         document.getElementById('modal-team-funds').textContent = `₹${team.money.toLocaleString()}`;
-        
-        const modalTeamLogo = document.getElementById('modal-team-logo');
+    
         if (team.logo_path) {
-            modalTeamLogo.src = team.logo_path;
-            modalTeamLogo.style.display = 'block';
+            document.getElementById('modal-team-logo').src = team.logo_path;
         } else {
-            modalTeamLogo.src = '/static/images/default_item.jpeg';
-            modalTeamLogo.style.display = 'block';
+            document.getElementById('modal-team-logo').src = '/static/images/default-item.jpeg'; // Fallback
         }
-
+    
+    
         const rosterList = document.getElementById('modal-team-roster');
         rosterList.innerHTML = '';
-        
+    
         if (team.inventory && Object.keys(team.inventory).length > 0) {
-            Object.entries(team.inventory).forEach(([player, price]) => {
+            // Sort players alphabetically, or by another criteria if needed
+            const sortedPlayerNames = Object.keys(team.inventory).sort();
+    
+            sortedPlayerNames.forEach(playerName => {
+                const playerData = team.inventory[playerName]; // playerData is now an object
                 const li = document.createElement('li');
-                li.innerHTML = `<span class="player-name">${player}</span><span class="player-price">₹${price.toLocaleString()}</span>`;
+                li.innerHTML = `
+                    <span class="player-name">${playerName}</span>
+                    <span class="player-prices">
+                        Sold: ₹${playerData.sold_price.toLocaleString()}
+                        (Base: ₹${playerData.base_bid ? playerData.base_bid.toLocaleString() : 'N/A'})
+                    </span>
+                `;
+                // Example of adding a class if sold price is much higher than base
+                if (playerData.base_bid && playerData.sold_price > playerData.base_bid * 1.5) {
+                    li.classList.add('good-buy');
+                }
                 rosterList.appendChild(li);
             });
         } else {
             rosterList.innerHTML = '<li class="no-players">No players acquired yet</li>';
         }
-
+    
         modal.classList.add('active');
     }
 
