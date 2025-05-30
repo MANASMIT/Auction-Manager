@@ -691,6 +691,7 @@ class AuctionApp(tk.Frame):
                 self._emit_full_state_to_webview() # Send initial state
                 return True
             else:
+                # This happens when the port is used by some other app / simply try restarting the UI!
                 messagebox.showerror("Webview Error", "Flask server thread failed to start.", parent=self)
                 self.flask_server_running = False
                 return False

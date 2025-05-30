@@ -2,961 +2,894 @@
 
 /* CSS Variables for theming */
 :root {
-    --primary-bg: #0a0a0f;
-    --secondary-bg: #1a1a2e;
-    --card-bg: #16213e;
-    --accent-color: #e94560;
-    --text-primary: #ffffff;
-    --text-secondary: #b8b8b8;
-    --success-color: #00d4aa;
-    --warning-color: #f39c12;
-    --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    --gradient-accent: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-    --shadow-dark: 0 10px 30px rgba(0, 0, 0, 0.5);
-    --shadow-glow: 0 0 20px rgba(233, 69, 96, 0.3);
-    --border-radius: 12px;
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-  }
-  
-  /* Light theme variables */
-  .light-theme {
-    --primary-bg: #f8fafc;
-    --secondary-bg: #ffffff;
-    --card-bg: #ffffff;
-    --text-primary: #1a202c;
-    --text-secondary: #4a5568;
-    --shadow-dark: 0 10px 30px rgba(0, 0, 0, 0.1);
-    --shadow-glow: 0 0 20px rgba(233, 69, 96, 0.1);
-  }
-  
-  /* Reset and Base Styles */
-  * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
-  
-  body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: var(--primary-bg);
-    color: var(--text-primary);
-    overflow-x: hidden;
-    transition: var(--transition-smooth);
-  }
-  
-  /* Smooth scrolling */
-  html {
-    scroll-behavior: smooth;
-  }
-  
-  /* Theme Toggle */
-  .theme-toggle {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 1000;
-  }
-  
-  #theme-toggle-btn {
-    background: var(--card-bg);
-    border: 2px solid var(--accent-color);
-    border-radius: 50px;
-    padding: 8px 16px;
-    color: var(--text-primary);
-    cursor: pointer;
-    transition: var(--transition-smooth);
-    box-shadow: var(--shadow-dark);
-  }
-  
-  #theme-toggle-btn:hover {
-    transform: scale(1.05);
-    box-shadow: var(--shadow-glow);
-  }
-  
-  .dark-theme .sun-icon { display: inline; }
-  .dark-theme .moon-icon { display: none; }
-  .light-theme .sun-icon { display: none; }
-  .light-theme .moon-icon { display: inline; }
-  
-  /* Header Styles */
-  .auction-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 20px 40px;
-    background: var(--secondary-bg);
-    box-shadow: var(--shadow-dark);
-    position: relative;
-    z-index: 100;
-  }
-  
-  .organizer-logo {
-    width: 120px;
-    height: 80px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  
-  .organizer-logo img {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
-    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
-  }
-  
-  .auction-title {
-    flex: 1;
-    text-align: center;
-    position: relative;
-  }
-  
-  .auction-title h1 {
-    font-size: 3rem;
-    font-weight: 800;
-    background: var(--gradient-primary);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-    margin-bottom: 10px;
-  }
-  
-  .live-indicator {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--success-color);
-  }
-  
-  .live-dot {
-    width: 12px;
-    height: 12px;
-    background: var(--success-color);
-    border-radius: 50%;
-    animation: pulse 2s infinite;
-  }
-  
-  @keyframes pulse {
-    0% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.7; transform: scale(1.2); }
-    100% { opacity: 1; transform: scale(1); }
-  }
-  
-  /* Main Content */
+  --primary-bg: #0a0a0f;
+  --secondary-bg: #1a1a2e;
+  --card-bg: #16213e;
+  --accent-color: #e94560;
+  --text-primary: #ffffff;
+  --text-secondary: #b8b8b8;
+  --success-color: #00d4aa;
+  --warning-color: #f39c12;
+  --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --gradient-accent: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  --shadow-dark: 0 10px 30px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 20px rgba(233, 69, 96, 0.3);
+  --border-radius: 12px;
+  --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* Light theme variables */
+.light-theme {
+  --primary-bg: #f8fafc;
+  --secondary-bg: #ffffff;
+  --card-bg: #ffffff;
+  --text-primary: #1a202c;
+  --text-secondary: #4a5568;
+  --shadow-dark: 0 10px 30px rgba(0, 0, 0, 0.1);
+  --shadow-glow: 0 0 20px rgba(233, 69, 96, 0.1);
+}
+
+/* Reset and Base Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--primary-bg);
+  color: var(--text-primary);
+  overflow-x: hidden;
+  transition: var(--transition-smooth);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Theme Toggle */
+.theme-toggle {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+}
+
+#theme-toggle-btn {
+  background: var(--card-bg);
+  border: 2px solid var(--accent-color);
+  border-radius: 50px;
+  padding: 8px 16px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  box-shadow: var(--shadow-dark);
+}
+
+#theme-toggle-btn:hover {
+  transform: scale(1.05);
+  box-shadow: var(--shadow-glow);
+}
+
+.dark-theme .sun-icon { display: inline; }
+.dark-theme .moon-icon { display: none; }
+.light-theme .sun-icon { display: none; }
+.light-theme .moon-icon { display: inline; }
+
+/* Header Styles */
+.auction-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 40px;
+  background: var(--secondary-bg);
+  box-shadow: var(--shadow-dark);
+  position: relative;
+  z-index: 100;
+}
+
+.organizer-logo {
+  width: 120px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.organizer-logo img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+}
+
+.auction-title {
+  flex: 1;
+  text-align: center;
+  position: relative;
+}
+
+.auction-title h1 {
+  font-size: 3rem;
+  font-weight: 800;
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  margin-bottom: 10px;
+}
+
+.live-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--success-color);
+}
+
+.live-dot {
+  width: 12px;
+  height: 12px;
+  background: var(--success-color);
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.2); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* Main Content */
+.auction-main {
+  padding: 40px 20px;
+  max-width: 1600px; /* Increased max-width for desktop layout */
+  margin: 0 auto;
+}
+
+/* Current Player Section */
+.current-player-section {
+  /* margin-bottom: 60px; */ /* Managed by grid gap now on desktop */
+  text-align: center;
+  /* max-width: 600px;  This should be on player-card itself */
+  margin-left: auto; /* Center player card if it's narrower than its grid cell */
+  margin-right: auto;
+}
+
+.no-player-message {
+  padding: 60px 20px;
+  background: var(--card-bg);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-dark);
+  position: relative;
+  min-height: 200px; /* Ensure it has some height */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.no-player-message h2 {
+  font-size: 1.8rem; /* Slightly smaller */
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+}
+
+.pulse-animation {
+  width: 50px; /* Smaller */
+  height: 50px; /* Smaller */
+  background: var(--accent-color);
+  border-radius: 50%;
+  margin: 0 auto;
+  animation: pulse 2s infinite;
+}
+
+.player-card {
+  position: relative;
+  min-width: 280px;
+  max-width: 800px; /* MODIFIED: Made smaller */
+  margin: 0 auto;
+  background: var(--card-bg);
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-dark);
+  transition: var(--transition-smooth);
+}
+
+.player-card.player-entrance {
+  animation: playerEntrance 1s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes playerEntrance {
+  0% { transform: scale(0.3) rotate(-2deg); opacity: 0; }
+  50% { transform: scale(1.2) rotate(2deg); }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+.player-image-container {
+  position: relative;
+  height: 320px; /* MODIFIED: Made smaller */
+  background: var(--gradient-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.player-image-container img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: cover; /* Changed to cover to fill, or contain if aspect is key */
+  border-radius: var(--border-radius) var(--border-radius) 0 0; /* Match card radius */
+}
+
+.player-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+  padding: 20px 20px 20px; /* Adjusted padding */
+  color: white;
+}
+
+.player-overlay h2 {
+  font-size: 2rem; /* MODIFIED: Made smaller */
+  font-weight: 700;
+  margin-bottom: 15px; /* Adjusted margin */
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.bid-info {
+  display: flex;
+  justify-content: space-around;
+  gap: 20px; /* Adjusted gap */
+}
+
+.bid-info > div {
+  text-align: center;
+}
+
+.bid-info .label {
+  display: block;
+  font-size: 0.8rem; /* Adjusted font size */
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 4px; /* Adjusted margin */
+}
+
+.bid-info .amount {
+  display: block;
+  font-size: 1.5rem; /* MODIFIED: Made smaller */
+  font-weight: 700;
+  color: var(--success-color);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Teams Section General (for cards themselves) */
+.team-card {
+  background: var(--card-bg);
+  border-radius: var(--border-radius);
+  padding: 20px; /* Slightly reduced padding */
+  cursor: pointer;
+  transition: var(--transition-bounce);
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-dark);
+  border: 2px solid transparent;
+  width: 100%; /* Ensure cards take up column/grid cell width */
+  max-width: 300px; /* Max width for a team card */
+  min-width: 260px; /* Min width for a team card */
+}
+
+.team-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: var(--transition-smooth);
+}
+
+.team-card:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: var(--shadow-glow);
+  border-color: var(--accent-color);
+}
+
+.team-card:hover::before {
+  left: 100%;
+}
+
+.team-card.bidding {
+  border-color: var(--warning-color);
+  animation: bidPulse 1s ease-in-out;
+}
+
+@keyframes bidPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.team-logo {
+  width: 70px; /* Slightly smaller */
+  height: 70px; /* Slightly smaller */
+  margin: 0 auto 12px;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: var(--shadow-dark);
+}
+
+.team-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.team-details {
+  text-align: center;
+}
+
+.team-name {
+  font-size: 1.2rem; /* Adjusted */
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--text-primary);
+}
+
+.team-funds {
+  font-size: 1.3rem; /* Adjusted */
+  font-weight: 700;
+  color: var(--success-color);
+  margin-bottom: 4px;
+}
+
+.team-players-count {
+  font-size: 0.85rem; /* Adjusted */
+  color: var(--text-secondary);
+}
+
+.bid-indicator {
+  position: absolute;
+  top: 10px; /* Adjusted */
+  right: 10px; /* Adjusted */
+  background: var(--warning-color);
+  color: white;
+  padding: 6px 10px; /* Adjusted */
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.8rem; /* Adjusted */
+  opacity: 0;
+  transform: scale(0);
+  transition: var(--transition-bounce);
+}
+
+.bid-indicator.active {
+  opacity: 1;
+  transform: scale(1);
+  animation: bidBounce 0.6s ease-out;
+}
+
+@keyframes bidBounce {
+  0% { transform: scale(0) rotate(-180deg); }
+  50% { transform: scale(1.2) rotate(-90deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+
+/* Mobile and Default Layout */
+.presenter-view-grid {
+    display: none; /* Hidden by default, enabled by media query */
+}
+.mobile-only-teams {
+    display: block; /* Shown by default */
+    margin-top: 40px;
+}
+.teams-grid { /* This is for mobile-only-teams' inner div */
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 25px;
+  padding: 20px 0;
+}
+
+
+/* Desktop Layout (min-width: 1024px) */
+@media (min-width: 1024px) {
   .auction-main {
-    padding: 40px 20px;
-    max-width: 1400px;
-    margin: 0 auto;
+      padding: 40px; /* More padding on desktop */
   }
-  
-  /* Current Player Section */
+  .mobile-only-teams {
+      display: none; /* Hide mobile layout */
+  }
+  .presenter-view-grid {
+      display: grid;
+      grid-template-columns: minmax(280px, 1fr) minmax(300px, auto) minmax(280px, 1fr);
+      /* grid-template-columns: minmax(280px, 1fr) auto minmax(280px, 1fr); */
+      grid-template-rows: auto auto; /* Row for player/sides, Row for bottom */
+      gap: 30px; /* Increased gap for desktop */
+      align-items: flex-start; 
+      justify-content: center; /* Center the whole grid if it's narrower than auction-main */
+  }
   .current-player-section {
-    margin-bottom: 60px;
-    text-align: center;
-  }
-  
-  .no-player-message {
-    padding: 60px 20px;
-    background: var(--card-bg);
-    border-radius: var(--border-radius);
-    box-shadow: var(--shadow-dark);
-    position: relative;
-  }
-  
-  .no-player-message h2 {
-    font-size: 2rem;
-    color: var(--text-secondary);
-    margin-bottom: 20px;
-  }
-  
-  .pulse-animation {
-    width: 60px;
-    height: 60px;
-    background: var(--accent-color);
-    border-radius: 50%;
-    margin: 0 auto;
-    animation: pulse 2s infinite;
-  }
-  
-  .player-card {
-    position: relative;
-    max-width: 800px;
-    margin: 0 auto;
-    background: var(--card-bg);
-    border-radius: var(--border-radius);
-    overflow: hidden;
-    box-shadow: var(--shadow-dark);
-    transition: var(--transition-smooth);
-  }
-  
-  .player-card.player-entrance {
-    animation: playerEntrance 1s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-  }
-  
-  @keyframes playerEntrance {
-    0% {
-      transform: scale(0.3) rotate(-2deg);
-      opacity: 0;
-    }
-    50% {
-      transform: scale(1.2) rotate(2deg);
-    }
-    100% {
-      transform: scale(1) rotate(0deg);
-      opacity: 1;
-    }
-  }
-  
-  .player-image-container {
-    position: relative;
-    height: 400px;
-    background: var(--gradient-primary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  
-  .player-image-container img {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: cover;
-    border-radius: var(--border-radius);
-    box-shadow: var(--shadow-dark);
-  }
-  
-  .player-overlay {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
-    padding: 40px 30px 30px;
-    color: white;
-  }
-  
-  .player-overlay h2 {
-    font-size: 2.5rem;
-    font-weight: 700;
-    margin-bottom: 20px;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-  }
-  
-  .bid-info {
-    display: flex;
-    justify-content: space-around;
-    gap: 30px;
-  }
-  
-  .bid-info > div {
-    text-align: center;
-  }
-  
-  .bid-info .label {
-    display: block;
-    font-size: 0.9rem;
-    color: rgba(255, 255, 255, 0.8);
-    margin-bottom: 5px;
-  }
-  
-  .bid-info .amount {
-    display: block;
-    font-size: 1.8rem;
-    font-weight: 700;
-    color: var(--success-color);
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-  }
-  
-  /* Teams Section */
-  .teams-section {
-    margin-bottom: 40px;
-  }
-  
-  .teams-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 25px;
-    padding: 20px 0;
-  }
-  
-  .team-card {
-    background: var(--card-bg);
-    border-radius: var(--border-radius);
-    padding: 25px;
-    cursor: pointer;
-    transition: var(--transition-bounce);
-    position: relative;
-    overflow: hidden;
-    box-shadow: var(--shadow-dark);
-    border: 2px solid transparent;
-  }
-  
-  .team-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-    transition: var(--transition-smooth);
-  }
-  
-  .team-card:hover {
-    transform: translateY(-8px) scale(1.02);
-    box-shadow: var(--shadow-glow);
-    border-color: var(--accent-color);
-  }
-  
-  .team-card:hover::before {
-    left: 100%;
-  }
-  
-  .team-card.bidding {
-    border-color: var(--warning-color);
-    animation: bidPulse 1s ease-in-out;
-  }
-  
-  @keyframes bidPulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-  }
-  
-  .team-logo {
-    width: 80px;
-    height: 80px;
-    margin: 0 auto 15px;
-    border-radius: 50%;
-    overflow: hidden;
-    box-shadow: var(--shadow-dark);
-  }
-  
-  .team-logo img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-  
-  .team-details {
-    text-align: center;
-  }
-  
-  .team-name {
-    font-size: 1.3rem;
-    font-weight: 600;
-    margin-bottom: 8px;
-    color: var(--text-primary);
-  }
-  
-  .team-funds {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--success-color);
-    margin-bottom: 5px;
-  }
-  
-  .team-players-count {
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-  }
-  
-  .bid-indicator {
-    position: absolute;
-    top: 15px;
-    right: 15px;
-    background: var(--warning-color);
-    color: white;
-    padding: 8px 12px;
-    border-radius: 20px;
-    font-weight: 600;
-    font-size: 0.9rem;
-    opacity: 0;
-    transform: scale(0);
-    transition: var(--transition-bounce);
-  }
-  
-  .bid-indicator.active {
-    opacity: 1;
-    transform: scale(1);
-    animation: bidBounce 0.6s ease-out;
-  }
-  
-  @keyframes bidBounce {
-    0% { transform: scale(0) rotate(-180deg); }
-    50% { transform: scale(1.2) rotate(-90deg); }
-    100% { transform: scale(1) rotate(0deg); }
-  }
-  
-  /* Sold Animation Overlay */
-  .sold-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.9);
-    z-index: 2000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    visibility: hidden;
-    transition: var(--transition-smooth);
-  }
-  
-  .sold-overlay.active {
-    opacity: 1;
-    visibility: visible;
-  }
-  
-  .sold-content {
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    gap: 60px;
-    align-items: center;
-    max-width: 1000px;
-    width: 100%;
-    padding: 40px;
-  }
-  
-  .sold-player, .sold-team {
-    text-align: center;
-    transform: scale(0);
-    animation: zoomIn 0.8s ease-out 0.5s forwards;
-  }
-  
-  .sold-player img, .sold-team img {
-    width: 200px;
-    height: 200px;
-    object-fit: cover;
-    border-radius: 50%;
-    box-shadow: var(--shadow-glow);
-    margin-bottom: 20px;
-  }
-  
-  .sold-player h3, .sold-team h3 {
-    font-size: 1.8rem;
-    font-weight: 600;
-    color: white;
-  }
-  
-  .sold-text {
-    text-align: center;
-    transform: scale(0);
-    animation: zoomIn 0.8s ease-out 0.2s forwards;
-  }
-  
-  .sold-text h1 {
-    font-size: 5rem;
-    font-weight: 900;
-    background: var(--gradient-accent);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    margin-bottom: 20px;
-    animation: textGlow 2s ease-in-out infinite alternate;
-  }
-  
-  .sold-text p {
-    font-size: 2.5rem;
-    font-weight: 700;
-    color: var(--success-color);
-  }
-  
-  @keyframes zoomIn {
-    0% {
-      transform: scale(0) rotate(-180deg);
-      opacity: 0;
-    }
-    100% {
-      transform: scale(1) rotate(0deg);
-      opacity: 1;
-    }
-  }
-  
-  @keyframes textGlow {
-    0% { text-shadow: 0 0 20px rgba(233, 69, 96, 0.5); }
-    100% { text-shadow: 0 0 40px rgba(233, 69, 96, 0.8); }
-  }
-  
-  /* Sold Ticker */
-  .sold-ticker {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    background: var(--secondary-bg);
-    padding: 15px 0;
-    box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.3);
-    z-index: 500;
-  }
-  
-  .ticker-content {
-    display: flex;
-    align-items: center;
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 0 20px;
-  }
-  
-  .ticker-title {
-    font-weight: 600;
-    margin-right: 20px;
-    color: var(--accent-color);
-    white-space: nowrap;
-  }
-  
-  .ticker-items {
-    flex: 1;
-    overflow: hidden;
-  }
-  
-  #ticker-list {
-    display: flex;
-    list-style: none;
-    animation: tickerScroll 30s linear infinite;
-  }
-  
-  #ticker-list li {
-    margin-right: 40px;
-    white-space: nowrap;
-    color: var(--text-secondary);
-  }
-  
-  @keyframes tickerScroll {
-    0% { transform: translateX(100%); }
-    100% { transform: translateX(-100%); }
-  }
-  
-  /* Team Modal */
-  .team-modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 3000;
-    opacity: 0;
-    visibility: hidden;
-    transition: var(--transition-smooth);
-  }
-  
-  .team-modal.active {
-    opacity: 1;
-    visibility: visible;
-  }
-  
-  .modal-backdrop {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.8);
-    backdrop-filter: blur(10px);
-  }
-  
-  .modal-content {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) scale(0.8);
-    background: var(--card-bg);
-    border-radius: var(--border-radius);
-    width: 90%;
-    max-width: 600px;
-    max-height: 80vh;
-    overflow: hidden;
-    box-shadow: var(--shadow-glow);
-    transition: var(--transition-bounce);
-  }
-  
-  .team-modal.active .modal-content {
-    transform: translate(-50%, -50%) scale(1);
-  }
-  
-  .modal-header {
-    display: flex;
-    align-items: center;
-    padding: 30px;
-    background: var(--gradient-primary);
-    color: white;
-    position: relative;
-  }
-  
-  .modal-header img {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    object-fit: cover;
-    margin-right: 20px;
-    box-shadow: var(--shadow-dark);
-  }
-  
-  .team-info h2 {
-    font-size: 2rem;
-    font-weight: 700;
-    margin-bottom: 5px;
-  }
-  
-  .team-funds {
-    font-size: 1.2rem;
-    opacity: 0.9;
-  }
-  
-  .close-btn {
-    position: absolute;
-    top: 15px;
-    right: 20px;
-    background: none;
-    border: none;
-    color: white;
-    font-size: 2rem;
-    cursor: pointer;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: var(--transition-smooth);
-  }
-  
-  .close-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
-    transform: rotate(90deg);
-  }
-  
-  .modal-body {
-    padding: 30px;
-    max-height: 400px;
-    overflow-y: auto;
-  }
-  
-  .modal-body h3 {
-    font-size: 1.5rem;
-    margin-bottom: 20px;
-    color: var(--text-primary);
-    border-bottom: 2px solid var(--accent-color);
-    padding-bottom: 10px;
-  }
-  
-  .roster-list {
-    list-style: none;
-  }
-  
-  .roster-list li {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 15px 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    transition: var(--transition-smooth);
-  }
-  
-  .roster-list li:hover {
-    background: rgba(255, 255, 255, 0.05);
-    padding-left: 10px;
-  }
-  
-  .roster-list li:last-child {
-    border-bottom: none;
-  }
-  
-  .player-name {
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-  
-  .player-price {
-    font-weight: 700;
-    color: var(--success-color);
-  }
-  
-  .no-players {
-    text-align: center;
-    color: var(--text-secondary);
-    font-style: italic;
-    padding: 40px 0;
-  }
-  
-  /* Bid Overlay Animation */
-  .bid-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    z-index: 1500;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  
-  .bid-amount {
-    font-size: 4rem;
-    font-weight: 900;
-    background: var(--gradient-accent);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    opacity: 0;
-    transform: scale(0);
-    animation: bidFlash 2s ease-out;
-  }
-  
-  @keyframes bidFlash {
-    0% {
-      opacity: 0;
-      transform: scale(0) rotate(-180deg);
-    }
-    20% {
-      opacity: 1;
-      transform: scale(1.2) rotate(-20deg);
-    }
-    80% {
-      opacity: 1;
-      transform: scale(1) rotate(0deg);
-    }
-    100% {
-      opacity: 0;
-      transform: scale(0.8) rotate(10deg);
-    }
-  }
-  
-  /* Responsive Design */
-  @media (max-width: 1200px) {
-    .auction-title h1 {
-      font-size: 2.5rem;
-    }
-    
-    .sold-content {
-      grid-template-columns: 1fr;
-      gap: 40px;
-      text-align: center;
-    }
-    
-    .sold-text h1 {
-      font-size: 4rem;
-    }
-  }
-  
-  @media (max-width: 768px) {
-    .auction-header {
+      grid-column: 2 / 3;
+      grid-row: 1 / 2;
+      align-self: start; /* Keep player card at the top of its cell */
+  }
+  .teams-column-left {
+      grid-column: 1 / 2;
+      grid-row: 1 / 2;
+  }
+  .teams-column-right {
+      grid-column: 3 / 4;
+      grid-row: 1 / 2;
+  }
+  .teams-column {
+      display: flex;
       flex-direction: column;
+      gap: 20px; /* Gap between team cards in a vertical column */
+      align-items: center; /* Center cards in the column if column is wider */
+  }
+  .teams-column .team-card {
+      margin-left: auto; /* Center cards if column is wider than card max-width */
+      margin-right: auto;
+  }
+
+  .teams-row-bottom {
+      grid-column: 1 / 4; /* Span all 3 columns */
+      grid-row: 2 / 3;
+      margin-top: 20px; /* Space above the bottom row */
+      display: grid;
+      gap: 25px;
+      justify-content: center; /* Center the grid items if they don't fill the space */
+      width: 100%;
+  }
+  .teams-row-bottom.flexible-columns {
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+       /* Padding to control width and center, e.g. if only 1-2 items */
+      padding: 0 5%;
+  }
+  .teams-row-bottom.strict-three-columns {
+      /* Max 3 columns, respecting card min/max widths */
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      /* To strictly force 3 columns and make them equal if space allows: */
+      /* grid-template-columns: repeat(3, minmax(280px, 1fr)); */ 
+      /* If using repeat(3, ...), ensure the container can actually fit 3x280px + gaps */
+      /* A max-width on the container helps enforce this visually */
+      max-width: calc(3 * 320px + 2 * 25px); /* Approx for 3 cards (300px + padding) + gaps */
+      margin-left: auto;
+      margin-right: auto;
+  }
+   .teams-row-bottom .team-card {
+      /* Ensure cards in bottom row can also be centered if grid cells are wider */
+      margin-left: auto;
+      margin-right: auto;
+  }
+}
+
+/* Sold Animation Overlay */
+.sold-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.9);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: var(--transition-smooth);
+}
+
+.sold-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.sold-content {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 60px;
+  align-items: center;
+  max-width: 1000px;
+  width: 100%;
+  padding: 40px;
+}
+
+.sold-player, .sold-team {
+  text-align: center;
+  transform: scale(0);
+  animation: zoomIn 0.8s ease-out 0.5s forwards;
+}
+
+.sold-player img, .sold-team img {
+  width: 200px;
+  height: 200px;
+  object-fit: cover;
+  border-radius: 50%;
+  box-shadow: var(--shadow-glow);
+  margin-bottom: 20px;
+}
+
+.sold-player h3, .sold-team h3 {
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: white;
+}
+
+.sold-text {
+  text-align: center;
+  transform: scale(0);
+  animation: zoomIn 0.8s ease-out 0.2s forwards;
+}
+
+.sold-text h1 {
+  font-size: 5rem;
+  font-weight: 900;
+  background: var(--gradient-accent);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 20px;
+  animation: textGlow 2s ease-in-out infinite alternate;
+}
+
+.sold-text p {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--success-color);
+}
+
+@keyframes zoomIn {
+  0% { transform: scale(0) rotate(-180deg); opacity: 0; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+@keyframes textGlow {
+  0% { text-shadow: 0 0 20px rgba(233, 69, 96, 0.5); }
+  100% { text-shadow: 0 0 40px rgba(233, 69, 96, 0.8); }
+}
+
+/* Sold Ticker */
+.sold-ticker {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: var(--secondary-bg);
+  padding: 15px 0;
+  box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.3);
+  z-index: 500;
+}
+
+.ticker-content {
+  display: flex;
+  align-items: center;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.ticker-title {
+  font-weight: 600;
+  margin-right: 20px;
+  color: var(--accent-color);
+  white-space: nowrap;
+}
+
+.ticker-items {
+  flex: 1;
+  overflow: hidden;
+}
+
+#ticker-list {
+  display: flex;
+  list-style: none;
+  animation: tickerScroll 30s linear infinite; /* Consider adjusting speed based on content */
+}
+
+#ticker-list li {
+  margin-right: 40px;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+
+@keyframes tickerScroll {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); } /* Adjust based on actual width of list */
+}
+
+/* Team Modal */
+.team-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 3000;
+  opacity: 0;
+  visibility: hidden;
+  transition: var(--transition-smooth);
+}
+
+.team-modal.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.modal-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+}
+
+.modal-content {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.8);
+  background: var(--card-bg);
+  border-radius: var(--border-radius);
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow: hidden;
+  box-shadow: var(--shadow-glow);
+  transition: var(--transition-bounce);
+  display: flex; /* Added for flex structure */
+  flex-direction: column; /* Added for flex structure */
+}
+
+.team-modal.active .modal-content {
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  padding: 30px;
+  background: var(--gradient-primary);
+  color: white;
+  position: relative;
+}
+
+.modal-header img {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-right: 20px;
+  box-shadow: var(--shadow-dark);
+}
+
+.team-info h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+
+.team-funds { /* class already exists, ensure it's styled for modal */
+  font-size: 1.2rem;
+  opacity: 0.9;
+}
+
+.close-btn {
+  position: absolute;
+  top: 15px;
+  right: 20px;
+  background: none;
+  border: none;
+  color: white;
+  font-size: 2rem;
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition-smooth);
+}
+
+.close-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: rotate(90deg);
+}
+
+.modal-body {
+  padding: 30px;
+  overflow-y: auto;
+  flex-grow: 1; /* Allow body to take available space */
+}
+
+.modal-body h3 {
+  font-size: 1.5rem;
+  margin-bottom: 20px;
+  color: var(--text-primary);
+  border-bottom: 2px solid var(--accent-color);
+  padding-bottom: 10px;
+}
+
+.roster-list {
+  list-style: none;
+}
+
+.roster-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  transition: var(--transition-smooth);
+}
+
+.roster-list li:hover {
+  background: rgba(255, 255, 255, 0.05);
+  padding-left: 10px;
+}
+
+.roster-list li:last-child {
+  border-bottom: none;
+}
+
+.player-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.player-price {
+  font-weight: 700;
+  color: var(--success-color);
+}
+
+.no-players {
+  text-align: center;
+  color: var(--text-secondary);
+  font-style: italic;
+  padding: 40px 0;
+}
+
+/* Bid Overlay Animation (Visuals not prominent in current setup) */
+.bid-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bid-amount {
+  font-size: 4rem;
+  font-weight: 900;
+  background: var(--gradient-accent);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  opacity: 0;
+  transform: scale(0);
+}
+
+
+/* Responsive Design Adjustments */
+@media (max-width: 1200px) { /* For large tablets / small desktops, before full desktop grid */
+  .presenter-view-grid {
+      /* Potentially simplify grid for medium screens if needed, or let it reflow */
+      grid-template-columns: minmax(280px, 1fr) minmax(300px, auto) minmax(280px, 1fr);
       gap: 20px;
-      padding: 20px;
-    }
-    
-    .organizer-logo {
-      width: 80px;
-      height: 60px;
-    }
-    
-    .auction-title h1 {
-      font-size: 2rem;
-    }
-    
-    .auction-main {
-      padding: 20px 10px;
-    }
-    
-    .teams-grid {
-      grid-template-columns: 1fr;
-      gap: 15px;
-    }
-    
-    .player-overlay h2 {
-      font-size: 2rem;
-    }
-    
-    .bid-info {
-      flex-direction: column;
-      gap: 15px;
-    }
-    
-    .sold-player img, .sold-team img {
-      width: 150px;
-      height: 150px;
-    }
-    
-    .sold-text h1 {
-      font-size: 3rem;
-    }
-    
-    .sold-text p {
-      font-size: 2rem;
-    }
-    
-    .modal-content {
-      width: 95%;
-      margin: 20px auto;
-    }
-    
-    .modal-header {
-      padding: 20px;
-    }
-    
-    .modal-header img {
-      width: 60px;
-      height: 60px;
-    }
-    
-    .team-info h2 {
-      font-size: 1.5rem;
-    }
-    
-    .ticker-content {
-      flex-direction: column;
-      gap: 10px;
-    }
-    
-    .bid-amount {
-      font-size: 3rem;
-    }
   }
+  .teams-row-bottom.strict-three-columns {
+      max-width: calc(3 * 300px + 2 * 20px); /* Adjust for potentially smaller cards/gaps */
+  }
+  .sold-content {
+    grid-template-columns: 1fr; /* Stack sold items earlier */
+    gap: 40px;
+    text-align: center;
+  }
+  .sold-text h1 { font-size: 4rem; }
+}
+
+@media (max-width: 1023px) { /* Styles for tablet and mobile (when desktop grid is off) */
+  .auction-header {
+    flex-direction: column;
+    gap: 20px;
+    padding: 20px;
+  }
+  .organizer-logo { width: 80px; height: 60px; }
+  .auction-title h1 { font-size: 2rem; }
+  .auction-main { padding: 20px 10px; }
   
-  @media (max-width: 480px) {
-    .auction-title h1 {
-      font-size: 1.5rem;
-    }
-    
-    .player-card {
-      margin: 0 10px;
-    }
-    
-    .player-image-container {
-      height: 300px;
-    }
-    
-    .player-overlay {
-      padding: 20px 15px 15px;
-    }
-    
-    .player-overlay h2 {
-      font-size: 1.5rem;
-    }
-    
-    .bid-info .amount {
-      font-size: 1.4rem;
-    }
-    
-    .team-card {
-      padding: 20px;
-    }
-    
-    .team-logo {
-      width: 60px;
-      height: 60px;
-    }
-    
-    .team-name {
-      font-size: 1.1rem;
-    }
-    
-    .team-funds {
-      font-size: 1.3rem;
-    }
-    
-    .sold-text h1 {
-      font-size: 2.5rem;
-    }
-    
-    .sold-text p {
-      font-size: 1.5rem;
-    }
-    
-    .bid-amount {
-      font-size: 2.5rem;
-    }
-  }
+  .player-card { max-width: 90%; } /* Allow player card to be more responsive on mobile */
+  .player-overlay h2 { font-size: 1.8rem; }
+  .bid-info { flex-direction: column; gap: 10px; }
+  .bid-info .amount { font-size: 1.4rem; }
   
-  /* Custom Scrollbar */
-  ::-webkit-scrollbar {
-    width: 8px;
-  }
+  .sold-player img, .sold-team img { width: 150px; height: 150px; }
+  .sold-text h1 { font-size: 3rem; }
+  .sold-text p { font-size: 2rem; }
   
-  ::-webkit-scrollbar-track {
-    background: var(--secondary-bg);
-  }
+  .modal-content { width: 95%; margin: 20px auto; }
+  .modal-header { padding: 20px; }
+  .modal-header img { width: 60px; height: 60px; }
+  .team-info h2 { font-size: 1.5rem; }
   
-  ::-webkit-scrollbar-thumb {
-    background: var(--accent-color);
-    border-radius: 4px;
-  }
+  .ticker-content { flex-direction: column; gap: 10px; }
+  .bid-amount { font-size: 3rem; }
+}
+
+@media (max-width: 480px) { /* Specific small mobile overrides */
+  .auction-title h1 { font-size: 1.5rem; }
+  .player-card { margin: 0 5px; /* Closer to edges */ } 
+  .player-image-container { height: 280px; }
+  .player-overlay { padding: 15px 10px 10px; }
+  .player-overlay h2 { font-size: 1.5rem; }
   
-  ::-webkit-scrollbar-thumb:hover {
-    background: #c73650;
-  }
+  .team-card { padding: 15px; min-width: auto; /* Allow full width */ }
+  .team-logo { width: 60px; height: 60px; }
+  .team-name { font-size: 1.1rem; }
+  .team-funds { font-size: 1.2rem; }
   
-  /* Smooth transitions for theme changes */
-  * {
-    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+  .sold-text h1 { font-size: 2.5rem; }
+  .sold-text p { font-size: 1.5rem; }
+  .bid-amount { font-size: 2.5rem; }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--secondary-bg); }
+::-webkit-scrollbar-thumb { background: var(--accent-color); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #c73650; }
+
+/* Loading animation for images */
+img { transition: opacity 0.3s ease; }
+img:not([src]), img[src=""], img[src="#"] { opacity: 0; }
+
+/* Focus styles for accessibility */
+button:focus, .team-card:focus {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+}
+
+/* Print styles */
+@media print {
+  .theme-toggle, .sold-overlay, .team-modal, .sold-ticker, .presenter-view-grid, .mobile-only-teams {
+    display: none !important;
   }
-  
-  /* Loading animation for images */
-  img {
-    transition: opacity 0.3s ease;
+  body { background: white !important; color: black !important; }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  :root {
+    --shadow-dark: 0 2px 8px rgba(0, 0, 0, 0.8);
+    --shadow-glow: 0 0 10px rgba(233, 69, 96, 0.8);
   }
-  
-  img:not([src]), img[src=""], img[src="#"] {
-    opacity: 0;
+  .team-card { border: 2px solid var(--text-primary); }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
-  
-  /* Focus styles for accessibility */
-  button:focus,
-  .team-card:focus {
-    outline: 2px solid var(--accent-color);
-    outline-offset: 2px;
-  }
-  
-  /* Print styles */
-  @media print {
-    .theme-toggle,
-    .sold-overlay,
-    .team-modal,
-    .sold-ticker {
-      display: none !important;
-    }
-    
-    body {
-      background: white !important;
-      color: black !important;
-    }
-  }
-  
-  /* High contrast mode support */
-  @media (prefers-contrast: high) {
-    :root {
-      --shadow-dark: 0 2px 8px rgba(0, 0, 0, 0.8);
-      --shadow-glow: 0 0 10px rgba(233, 69, 96, 0.8);
-    }
-    
-    .team-card {
-      border: 2px solid var(--text-primary);
-    }
-  }
-  
-  /* Reduced motion support */
-  @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
-    }
-    
-    .live-dot {
-      animation: none;
-    }
-    
-    .pulse-animation {
-      animation: none;
-    }
-  }
+  .live-dot, .pulse-animation, #ticker-list { animation: none !important; }
+}
