@@ -11,7 +11,8 @@ themeToggle.addEventListener('click', () => {
 document.addEventListener('DOMContentLoaded', () => {
     const socket = io('/presenter');
     let allTeamsData = {};
-    let currentBidTimeout = null;
+    let currentDisplayedItemName = null;
+    const teamCardAnimationTimeouts = {};
 
     socket.on('connect', () => {
         console.log('Connected to Presenter SocketIO server');
@@ -54,13 +55,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function populateTeamsGrid(teams) {
         const container = document.getElementById('teams-container');
-        container.innerHTML = '';
+        container.innerHTML = ''; // Clear existing cards
 
         Object.keys(teams).sort().forEach(teamName => {
             const team = teams[teamName];
             const teamCard = document.createElement('div');
             teamCard.className = 'team-card';
-            teamCard.dataset.teamName = teamName;
+            teamCard.dataset.teamName = teamName; // Used as the primary selector for the card
             
             teamCard.innerHTML = `
                 <div class="team-logo">
@@ -71,8 +72,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     <p class="team-funds">₹${team.money.toLocaleString()}</p>
                     <div class="team-players-count">${Object.keys(team.inventory || {}).length} players</div>
                 </div>
-                <div class="bid-indicator"></div>
-            `;
+                <div class="bid-indicator"></div> 
+            `; // .bid-indicator is the class for the indicator element
 
             teamCard.addEventListener('click', () => {
                 showTeamModal(teamName, allTeamsData);
@@ -85,6 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateCurrentItemDisplay(itemData) {
         const noItemMsg = document.getElementById('no-item-message');
         const playerCard = document.getElementById('current-player-card');
+        const newItemName = itemData ? itemData.name : null;
 
         if (itemData && itemData.name) {
             noItemMsg.style.display = 'none';
@@ -101,70 +103,146 @@ document.addEventListener('DOMContentLoaded', () => {
                 playerImg.style.display = 'none';
             }
 
-            // Animate player card entrance
-            playerCard.classList.add('player-entrance');
-            setTimeout(() => {
-                playerCard.classList.remove('player-entrance');
-            }, 1000);
+            if (newItemName !== currentDisplayedItemName) {
+                playerCard.classList.add('player-entrance');
+                setTimeout(() => {
+                    playerCard.classList.remove('player-entrance');
+                }, 1000);
+            }
         } else {
             noItemMsg.style.display = 'block';
             playerCard.style.display = 'none';
         }
+        currentDisplayedItemName = newItemName;
     }
 
     function updateBiddingStatusDisplay(bidStatus) {
-        if (bidStatus && bidStatus.bid_amount) {
+        if (bidStatus && typeof bidStatus.bid_amount === 'number') {
             document.getElementById('current-bid-amount').textContent = `₹${bidStatus.bid_amount.toLocaleString()}`;
             
             if (bidStatus.highest_bidder_name) {
                 showBidAnimation(bidStatus.highest_bidder_name, bidStatus.bid_amount);
+            } else {
+                // No highest bidder, so clear all active bid animations
+                Object.keys(teamCardAnimationTimeouts).forEach(teamNameInTimeout => {
+                    clearTimeout(teamCardAnimationTimeouts[teamNameInTimeout]);
+                    const teamCardToClear = document.querySelector(`[data-team-name="${teamNameInTimeout}"]`);
+                    if (teamCardToClear) {
+                        const bidIndicatorToClear = teamCardToClear.querySelector('.bid-indicator');
+                        if (bidIndicatorToClear) bidIndicatorToClear.classList.remove('active');
+                        teamCardToClear.classList.remove('bidding');
+                    }
+                    delete teamCardAnimationTimeouts[teamNameInTimeout];
+                });
             }
         } else {
             document.getElementById('current-bid-amount').textContent = '₹0';
+            // Also clear all animations if bidStatus is invalid or no bid_amount
+            Object.keys(teamCardAnimationTimeouts).forEach(teamNameInTimeout => {
+                clearTimeout(teamCardAnimationTimeouts[teamNameInTimeout]);
+                const teamCardToClear = document.querySelector(`[data-team-name="${teamNameInTimeout}"]`);
+                if (teamCardToClear) {
+                    const bidIndicatorToClear = teamCardToClear.querySelector('.bid-indicator');
+                    if (bidIndicatorToClear) bidIndicatorToClear.classList.remove('active');
+                    teamCardToClear.classList.remove('bidding');
+                }
+                delete teamCardAnimationTimeouts[teamNameInTimeout];
+            });
         }
     }
 
-    function showBidAnimation(teamName, bidAmount) {
-        // Clear existing timeout
-        if (currentBidTimeout) {
-            clearTimeout(currentBidTimeout);
+    function showBidAnimation(currentHighestBidderTeamName, bidAmount) {
+        // 0. Clear all existing timeouts to prevent them from interfering.
+        Object.keys(teamCardAnimationTimeouts).forEach(teamNameInMap => {
+            clearTimeout(teamCardAnimationTimeouts[teamNameInMap]);
+            delete teamCardAnimationTimeouts[teamNameInMap]; // Clean up the map entry
+        });
+
+        // 1. Remove 'bidding' and 'active' classes from ALL team cards and indicators first.
+        // This ensures a completely clean slate before attempting to animate the target.
+        document.querySelectorAll('.team-card').forEach(card => {
+            card.classList.remove('bidding');
+            const indicator = card.querySelector('.bid-indicator');
+            if (indicator) {
+                indicator.classList.remove('active');
+            }
+        });
+
+        // 2. Get the target elements (we'll re-query inside setTimeout for safety)
+        const targetTeamCardForText = document.querySelector(`[data-team-name="${currentHighestBidderTeamName}"]`);
+        if (!targetTeamCardForText) {
+            console.error(`Initial query failed for team card: ${currentHighestBidderTeamName}`);
+            return;
+        }
+        const targetBidIndicatorForText = targetTeamCardForText.querySelector('.bid-indicator');
+        if (!targetBidIndicatorForText) {
+            console.error(`Initial query failed for bid indicator: ${currentHighestBidderTeamName}`);
+            return;
         }
 
-        // Find team card and show bid indicator
-        const teamCard = document.querySelector(`[data-team-name="${teamName}"]`);
-        if (teamCard) {
+        // 3. Use a minimal setTimeout to add the classes.
+        const timeoutId = setTimeout(() => {
+            const teamCard = document.querySelector(`[data-team-name="${currentHighestBidderTeamName}"]`);
+            if (!teamCard) {
+                console.error(`Team card not found in setTimeout for: ${currentHighestBidderTeamName}`);
+                return;
+            }
             const bidIndicator = teamCard.querySelector('.bid-indicator');
+            if (!bidIndicator) {
+                console.error(`Bid indicator not found in setTimeout for: ${currentHighestBidderTeamName}`);
+                return;
+            }
+
+            // Add classes to trigger animation
+            teamCard.classList.add('bidding');
             bidIndicator.textContent = `₹${bidAmount.toLocaleString()}`;
             bidIndicator.classList.add('active');
-            teamCard.classList.add('bidding');
 
-            // Remove animation after 3 seconds
-            currentBidTimeout = setTimeout(() => {
-                bidIndicator.classList.remove('active');
-                teamCard.classList.remove('bidding');
-            }, 3000);
-        }
+            // Store this timeout ID so it can be cleared if another bid comes in quickly.
+            // And set another timeout to remove the classes after animation.
+            teamCardAnimationTimeouts[currentHighestBidderTeamName] = setTimeout(() => {
+                // Check if elements still exist before removing classes
+                const finalTeamCard = document.querySelector(`[data-team-name="${currentHighestBidderTeamName}"]`);
+                if (finalTeamCard) {
+                    finalTeamCard.classList.remove('bidding');
+                    const finalBidIndicator = finalTeamCard.querySelector('.bid-indicator');
+                    if (finalBidIndicator) {
+                        finalBidIndicator.classList.remove('active');
+                    }
+                }
+                delete teamCardAnimationTimeouts[currentHighestBidderTeamName]; // Clean up
+            }, 3000); // Duration for classes to remain active
+
+        }, 10);
     }
 
     function showSoldAnimation(soldData) {
         const overlay = document.getElementById('sold-overlay');
         
-        // Populate sold animation data
         document.getElementById('sold-player-name').textContent = soldData.player_name;
         document.getElementById('sold-team-name').textContent = soldData.winning_team_name;
         document.getElementById('sold-price').textContent = `₹${soldData.sold_price.toLocaleString()}`;
         
+        const soldPlayerImage = document.getElementById('sold-player-image');
         if (soldData.player_photo_path) {
-            document.getElementById('sold-player-image').src = soldData.player_photo_path;
-        }
-        if (soldData.winning_team_logo_path) {
-            document.getElementById('sold-team-logo').src = soldData.winning_team_logo_path;
+            soldPlayerImage.src = soldData.player_photo_path;
+            soldPlayerImage.style.display = 'block';
+        } else {
+            soldPlayerImage.src = '/static/images/default-item.jpeg'; // Default
+            soldPlayerImage.style.display = 'block';
         }
 
-        // Show animation
+        const soldTeamLogo = document.getElementById('sold-team-logo');
+        if (soldData.winning_team_logo_path) {
+            soldTeamLogo.src = soldData.winning_team_logo_path;
+            soldTeamLogo.style.display = 'block';
+        } else {
+            soldTeamLogo.src = '/static/images/default-item.jpeg'; // Default
+            soldTeamLogo.style.display = 'block';
+        }
+
         overlay.classList.add('active');
         
-        // Hide after 5 seconds
         setTimeout(() => {
             overlay.classList.remove('active');
         }, 5000);
@@ -175,28 +253,55 @@ document.addEventListener('DOMContentLoaded', () => {
         const newItem = document.createElement('li');
         newItem.innerHTML = `<strong>${soldData.player_name}</strong> → <em>${soldData.winning_team_name}</em> (₹${soldData.sold_price.toLocaleString()})`;
         
-        tickerList.insertBefore(newItem, tickerList.firstChild);
+        if (tickerList.firstChild) {
+            tickerList.insertBefore(newItem, tickerList.firstChild);
+        } else {
+            tickerList.appendChild(newItem);
+        }
         
-        // Keep only 10 items
         while (tickerList.children.length > 10) {
             tickerList.removeChild(tickerList.lastChild);
         }
     }
 
-    function handleItemPassed(data) {
-        console.log(`Item passed: ${data.item_name}`);
-        // Could add a "PASSED" animation here
+    function handleItemPassed(passData) {
+        console.log(`Item passed: ${passData.item_name}`);
+        const noItemMsg = document.getElementById('no-item-message');
+        const playerCard = document.getElementById('current-player-card');
+        
+        if (noItemMsg && playerCard) { // Ensure elements exist
+            noItemMsg.textContent = `${passData.item_name || 'Item'} - PASSED`;
+            noItemMsg.style.display = 'block';
+            playerCard.style.display = 'none';
+            currentDisplayedItemName = `PASSED_${passData.item_name || Date.now()}`; // Make it unique
+
+            setTimeout(() => {
+                // Check if the message is still the "PASSED" message before resetting
+                if (noItemMsg.textContent === `${passData.item_name || 'Item'} - PASSED`) { 
+                    noItemMsg.textContent = "No item currently up for auction.";
+                }
+            }, 3000);
+        }
     }
 
-    function showTeamModal(teamName, teamsData) {
-        const team = teamsData[teamName];
+    function showTeamModal(teamName, teamsDataRef) {
+        const team = teamsDataRef[teamName];
+        if (!team) {
+            console.error("Team data not found for modal:", teamName);
+            return;
+        }
         const modal = document.getElementById('team-modal');
         
         document.getElementById('modal-team-name').textContent = teamName;
         document.getElementById('modal-team-funds').textContent = `₹${team.money.toLocaleString()}`;
         
+        const modalTeamLogo = document.getElementById('modal-team-logo');
         if (team.logo_path) {
-            document.getElementById('modal-team-logo').src = team.logo_path;
+            modalTeamLogo.src = team.logo_path;
+            modalTeamLogo.style.display = 'block';
+        } else {
+            modalTeamLogo.src = '/static/images/default-item.jpeg'; // Default
+            modalTeamLogo.style.display = 'block';
         }
 
         const rosterList = document.getElementById('modal-team-roster');
@@ -215,7 +320,6 @@ document.addEventListener('DOMContentLoaded', () => {
         modal.classList.add('active');
     }
 
-    // Modal close functionality
     document.getElementById('close-modal').addEventListener('click', () => {
         document.getElementById('team-modal').classList.remove('active');
     });
@@ -224,3 +328,4 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('team-modal').classList.remove('active');
     });
 });
+// --- END OF FILE presenter.js ---
