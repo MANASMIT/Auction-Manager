@@ -104,6 +104,30 @@ def apply_hover_effect(widget, hover_bg, original_bg, hover_fg=None, original_fg
     widget.bind("<Enter>", on_enter)
     widget.bind("<Leave>", on_leave)
 
+def get_executable_directory_path():
+    """
+    Returns the directory where the executable is located,
+    or the script's directory if running as a .py file.
+    This is suitable for bulding external data files placed alongside the executable.
+    """
+    if getattr(sys, 'frozen', False):
+        # If the application is run as a bundle, the PyInstaller bootloader
+        # extends the sys module by a flag frozen=True and sets the app
+        # path into variable _MEIPASS'.
+        # However, for external files, we want the dir of the .exe itself.
+        application_path = os.path.dirname(sys.executable)
+    else:
+        application_path = os.path.dirname(os.path.abspath(__file__))
+    return application_path
+
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
 class StyledButton(tk.Button):
     def __init__(self, master=None, cnf={}, **kw):
         default_style = {
@@ -1347,52 +1371,21 @@ class AuctionApp(tk.Frame):
     def _find_image_filename_with_extension(self, base_filename_no_ext):
         if not base_filename_no_ext:
             return None
-        
-        # Define static images directory (assuming auction_flask_app.py is in the same dir as static/)
-        # This path resolution needs to be robust.
-        try:
-            # Get the directory of the currently running script (auction_UI.py)
-            # Then go up one level (if src/) or assume static is sibling
-            # For now, let's assume auction_flask_app can be imported and its __file__ used
-            if auction_flask_app and hasattr(auction_flask_app, '__file__'):
-                 static_images_dir = os.path.join(os.path.dirname(auction_flask_app.__file__), 'static', 'images')
-            else: # Fallback if auction_flask_app not available (e.g. FLASK_AVAILABLE is False)
-                # This path might not be correct if static isn't relative to auction_UI.py
-                # A more robust way would be to pass the static dir path during AuctionApp init
-                # or have a global config.
-                current_script_dir = os.path.dirname(__file__)
-                static_images_dir = os.path.join(current_script_dir, 'static', 'images')
-                if not os.path.isdir(static_images_dir): # Try going up one level if in 'src'
-                    static_images_dir = os.path.join(os.path.dirname(current_script_dir), 'static', 'images')
 
-        except NameError: # auction_flask_app might not be defined if import failed
-             current_script_dir = os.path.dirname(__file__)
-             static_images_dir = os.path.join(current_script_dir, 'static', 'images')
-             if not os.path.isdir(static_images_dir):
-                 static_images_dir = os.path.join(os.path.dirname(current_script_dir), 'static', 'images')
-
+        app_base_dir = get_executable_directory_path() # Get executable's directory
+        static_images_dir = os.path.join(app_base_dir, 'static', 'images')
 
         if not os.path.isdir(static_images_dir):
-            print(f"Warning: Static images directory not found at {static_images_dir} for image extension check.")
+            print(f"Warning: External static images directory not found at {static_images_dir}")
             # Fallback: guess common extensions without checking existence
-            # This means the client might get a 404 if the guess is wrong.
-            possible_extensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp']
-            for ext in possible_extensions:
-                # Even without checking, we return the filename with a guessed extension.
-                # The _get_web_path will form the URL. Browser will report 404 if wrong.
-                # To be more robust, you'd ensure the image *must* exist or the CSV specifies the full filename.
-                # For now, just return the first common one for the URL construction.
-                return f"{base_filename_no_ext}{ext}" # e.g., Player-One.png
-            return None # Should not happen if possible_extensions is not empty
+            return f"{base_filename_no_ext}.png" # Or another default behavior
 
         possible_extensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp']
         for ext in possible_extensions:
             potential_filename = f"{base_filename_no_ext}{ext}"
             if os.path.exists(os.path.join(static_images_dir, potential_filename)):
-                return potential_filename # Found an existing image
-        
-        # print(f"Warning: No image found for base '{base_filename_no_ext}' with common extensions in {static_images_dir}")
-        return f"{base_filename_no_ext}.png" # Fallback to .png if nothing found, client will 404
+                return potential_filename
+        return f"{base_filename_no_ext}.png" # Fallback
 
     def _get_web_path(self, entity_name, is_logo=False):
         # entity_name is the raw player name (e.g., "Player One") or team name (e.g., "Team Alpha")
@@ -1415,20 +1408,9 @@ class AuctionApp(tk.Frame):
         else:
             return None
 
-# You'll need _get_application_base_path (or similar) if you implemented it for images
-    # If not, define it here or ensure paths are correct.
-    def _get_application_base_path(self): # Copied from previous suggestion
-        if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
-            return sys._MEIPASS 
-        else:
-            # This assumes auction_UI.py is at the project root, or 'templates' is a sibling.
-            # If auction_UI.py is in 'src/', and 'templates' is at root:
-            # return os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-            return os.path.abspath(os.path.dirname(__file__))
-
     def _show_documentation(self):
         try:
-            base_path = self._get_application_base_path()
+            base_path = get_executable_directory_path()
             # Assuming documentation.html is directly in 'templates'
             # and 'templates' is either bundled (found via _MEIPASS) 
             # or a sibling to auction_UI.py in development.
@@ -1467,6 +1449,33 @@ class AuctionApp(tk.Frame):
 def main():
     # ... (No changes from your provided code, includes handle_resume_auction_logic) ...
     root = tk.Tk(); root.title("Auction Command"); root.geometry("1300x850"); root.configure(bg=THEME_BG_PRIMARY)
+    
+    # --- SETTING THE WINDOW ICON ---
+    try:
+        # Icon is expected at the runtime root because of datas=[(..., '.')]
+        icon_filename = "auction-command-icon.ico"
+        icon_path_resolved = resource_path(icon_filename) # Pass only the filename
+
+        if os.path.exists(icon_path_resolved):
+             root.iconbitmap(icon_path_resolved)
+        else:
+            print(f"Warning: Window icon file not found at {icon_path_resolved}")
+            # Fallback for development if running script directly from project root
+            # where 'static/images/auction-command-icon.ico' exists
+            dev_icon_path = os.path.join(os.path.abspath("."), "static", "images", icon_filename)
+            if os.path.exists(dev_icon_path):
+                print(f"Info: Found icon at development path: {dev_icon_path}")
+                root.iconbitmap(dev_icon_path)
+            else:
+                 print(f"Warning: Window icon also not found at dev path: {dev_icon_path}")
+
+
+    except tk.TclError:
+        print("Warning: Could not set .ico window icon (TclError).")
+    except Exception as e:
+        print(f"Warning: An unexpected error occurred while setting window icon: {e}")
+    # --- END OF ICON SETTING ---
+    
     try:
         root.tk.call('tk_setPalette', 'background', THEME_BG_SECONDARY); root.tk.call('tk_setPalette', 'foreground', THEME_TEXT_PRIMARY)
         root.tk.call('tk_setPalette', 'activeBackground', THEME_HIGHLIGHT_BG); root.tk.call('tk_setPalette', 'activeForeground', THEME_TEXT_PRIMARY)
@@ -1524,6 +1533,7 @@ def main():
     root.protocol("WM_DELETE_WINDOW", on_root_close)
     show_page(InitialPage, lambda: show_page(FileSelectPage, start_new_auction_ui, title="CREATE NEW AUCTION"), handle_resume_auction_logic)
     root.mainloop()
+
 
 if __name__ == "__main__":
     main()

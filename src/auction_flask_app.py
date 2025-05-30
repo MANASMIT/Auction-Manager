@@ -1,6 +1,6 @@
 # auction_flask_app.py
 
-import os
+import os, sys
 from flask import Flask, render_template, jsonify
 from flask_socketio import SocketIO, emit
 import logging
@@ -13,12 +13,31 @@ log.setLevel(logging.ERROR) # or logging.WARNING
 tk_auction_app_instance = None
 flask_socketio_instance = None
 
+def get_executable_directory():
+    """
+    Get the directory of the executable or the script.
+    This is reliable for finding data files placed alongside the executable,
+    even for one-file PyInstaller bundles.
+    """
+    if getattr(sys, 'frozen', False):
+        # If the application is run as a bundle (e.g., by PyInstaller)
+        # sys.executable is the path to the executable file (this works for one-file and one-dir)
+        application_path = os.path.dirname(sys.executable)
+    elif __file__:
+        # If run as a normal .py script
+        application_path = os.path.dirname(os.path.abspath(__file__))
+    else:
+        # Fallback (e.g. if run from interactive interpreter without __file__)
+        application_path = os.getcwd()
+    return application_path
+
 def create_flask_app(auction_app_ref):
     global tk_auction_app_instance, flask_socketio_instance
-
     tk_auction_app_instance = auction_app_ref
+   
+    base_dir = get_executable_directory()
+    print(f"DEBUG: Base directory for resources: {base_dir}")
 
-    base_dir = os.path.abspath(os.path.dirname(__file__))
     template_folder = os.path.join(base_dir, 'templates')
     static_folder = os.path.join(base_dir, 'static')
 
