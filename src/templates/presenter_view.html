@@ -3,64 +3,351 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Auction Presenter: {{ auction_name }}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <title>Auction Presenter: Live Auction</title>
+    <link rel="stylesheet" href="static/css/presenter_view.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
 </head>
-<body>
-    <header>
-        <h1>{{ auction_name }} - Live</h1>
+<body class="dark-theme">
+    <!-- Theme Toggle -->
+    <div class="theme-toggle">
+        <button id="theme-toggle-btn" aria-label="Toggle theme">
+            <span class="sun-icon">☀️</span>
+            <span class="moon-icon">🌙</span>
+        </button>
+    </div>
+
+    <!-- Header Section -->
+    <header class="auction-header">
+        <div class="organizer-logo left">
+            <img src="/static/images/logo_placeholder_left.png" alt="Organizer Logo" id="left-logo">
+        </div>
+        <div class="auction-title">
+            <h1 id="auction-name">LIVE AUCTION</h1>
+            <div class="live-indicator">
+                <span class="live-dot"></span>
+                <span>LIVE</span>
+            </div>
+        </div>
+        <div class="organizer-logo right">
+            <img src="/static/images/logo_placeholder_right.png" alt="Organizer Logo" id="right-logo">
+        </div>
     </header>
 
-    <main>
-        <section id="current-item-section">
-            <h2>Current Item for Bidding</h2>
-            <div id="item-details" class="card">
-                <p id="no-item-message">No item selected for bidding.</p>
-                <img id="item-photo" src="#" alt="Player Photo" style="display:none;">
-                <h3 id="item-name"></h3>
-                <p>Base Bid: <span id="item-base-bid"></span></p>
+    <!-- Main Content -->
+    <main class="auction-main">
+        <!-- Current Player Section -->
+        <section class="current-player-section">
+            <div id="no-item-message" class="no-player-message">
+                <h2>Waiting for next player...</h2>
+                <div class="pulse-animation"></div>
             </div>
-        </section>
-
-        <section id="bidding-status-section">
-            <h2>Bidding Status</h2>
-            <div id="bid-info" class="card">
-                <p>Current Bid: <span id="current-bid-amount">₹0</span></p>
-                <p>Highest Bidder: <span id="highest-bidder-name">--</span></p>
-                <img id="bidder-logo" src="#" alt="Bidder Logo" style="display:none;">
-            </div>
-        </section>
-
-        <section id="sold-ticker-section">
-            <h2>Recently Sold</h2>
-            <div id="sold-ticker" class="card">
-                <ul>
-                    <!-- Sold items will be added here by JS -->
-                </ul>
-            </div>
-        </section>
-        
-        <section id="teams-overview-section">
-            <h2>Teams Overview</h2>
-            <div id="teams-list" class="teams-container">
-                <!-- Team cards will be populated here by JS -->
-            </div>
-            <div id="team-roster-modal" class="modal">
-                <div class="modal-content">
-                    <span class="close-button">×</span>
-                    <h3 id="modal-team-name"></h3>
-                    <ul id="modal-team-roster-list"></ul>
+            
+            <div id="current-player-card" class="player-card" style="display: none;">
+                <div class="player-image-container">
+                    <img id="item-photo" src="#" alt="Player Photo">
+                    <div class="player-overlay">
+                        <h2 id="item-name">Player Name</h2>
+                        <div class="bid-info">
+                            <div class="base-bid">
+                                <span class="label">Base Bid</span>
+                                <span id="item-base-bid" class="amount">₹0</span>
+                            </div>
+                            <div class="current-bid">
+                                <span class="label">Current Bid</span>
+                                <span id="current-bid-amount" class="amount">₹0</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
+
+        <!-- Teams Section -->
+        <section class="teams-section">
+            <div id="teams-container" class="teams-grid">
+                <!-- Teams will be populated here -->
+            </div>
+        </section>
+
+        <!-- Sold Animation Overlay -->
+        <div id="sold-overlay" class="sold-overlay">
+            <div class="sold-content">
+                <div class="sold-player">
+                    <img id="sold-player-image" src="#" alt="Sold Player">
+                    <h3 id="sold-player-name">Player Name</h3>
+                </div>
+                <div class="sold-text">
+                    <h1>SOLD!</h1>
+                    <p id="sold-price">₹0</p>
+                </div>
+                <div class="sold-team">
+                    <img id="sold-team-logo" src="#" alt="Team Logo">
+                    <h3 id="sold-team-name">Team Name</h3>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recently Sold Ticker -->
+        <div id="sold-ticker" class="sold-ticker">
+            <div class="ticker-content">
+                <span class="ticker-title">Recently Sold:</span>
+                <div class="ticker-items">
+                    <ul id="ticker-list">
+                        <!-- Ticker items will be added here -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bidding Animation Overlay -->
+        <div id="bid-overlay" class="bid-overlay">
+            <div class="bid-amount">₹<span id="bid-amount-value">0</span></div>
+        </div>
     </main>
 
-    <footer>
-        <p>Auction Presenter View</p>
-    </footer>
+    <!-- Team Details Modal -->
+    <div id="team-modal" class="team-modal">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <img id="modal-team-logo" src="#" alt="Team Logo">
+                <div class="team-info">
+                    <h2 id="modal-team-name">Team Name</h2>
+                    <p class="team-funds">Available Funds: <span id="modal-team-funds">₹0</span></p>
+                </div>
+                <button class="close-btn" id="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <h3>Player Roster</h3>
+                <ul id="modal-team-roster" class="roster-list">
+                    <!-- Roster will be populated here -->
+                </ul>
+            </div>
+        </div>
+    </div>
 
-    <script src="{{ url_for('static', filename='js/common.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/presenter.js') }}"></script>
+    <script>
+        // Theme Toggle Functionality
+        const themeToggle = document.getElementById('theme-toggle-btn');
+        const body = document.body;
+
+        themeToggle.addEventListener('click', () => {
+            body.classList.toggle('dark-theme');
+            body.classList.toggle('light-theme');
+        });
+
+        // Socket.IO and Core Functionality
+        document.addEventListener('DOMContentLoaded', () => {
+            const socket = io('/presenter');
+            let allTeamsData = {};
+            let currentBidTimeout = null;
+
+            socket.on('connect', () => {
+                console.log('Connected to Presenter SocketIO server');
+                socket.emit('request_initial_data');
+                fetchTeamsData();
+            });
+
+            socket.on('disconnect', () => {
+                console.log('Disconnected from Presenter SocketIO server');
+            });
+
+            socket.on('full_state_update', (data) => {
+                updateCurrentItemDisplay(data.current_item);
+                updateBiddingStatusDisplay(data.bid_status);
+            });
+
+            socket.on('item_sold_event', (soldData) => {
+                showSoldAnimation(soldData);
+                updateSoldTicker(soldData);
+            });
+
+            socket.on('item_passed_event', (passData) => {
+                handleItemPassed(passData);
+            });
+
+            function fetchTeamsData() {
+                fetch('/api/all_teams_status')
+                    .then(response => response.json())
+                    .then(data => {
+                        allTeamsData = data;
+                        populateTeamsGrid(data);
+                    })
+                    .catch(error => console.error('Error fetching teams data:', error));
+            }
+
+            function populateTeamsGrid(teams) {
+                const container = document.getElementById('teams-container');
+                container.innerHTML = '';
+
+                Object.keys(teams).sort().forEach(teamName => {
+                    const team = teams[teamName];
+                    const teamCard = document.createElement('div');
+                    teamCard.className = 'team-card';
+                    teamCard.dataset.teamName = teamName;
+                    
+                    teamCard.innerHTML = `
+                        <div class="team-logo">
+                            <img src="${team.logo_path || '/static/images/default-team-logo.png'}" alt="${teamName} logo">
+                        </div>
+                        <div class="team-details">
+                            <h3 class="team-name">${teamName}</h3>
+                            <p class="team-funds">₹${team.money.toLocaleString()}</p>
+                            <div class="team-players-count">${Object.keys(team.inventory || {}).length} players</div>
+                        </div>
+                        <div class="bid-indicator"></div>
+                    `;
+
+                    teamCard.addEventListener('click', () => {
+                        showTeamModal(teamName, allTeamsData);
+                    });
+
+                    container.appendChild(teamCard);
+                });
+            }
+
+            function updateCurrentItemDisplay(itemData) {
+                const noItemMsg = document.getElementById('no-item-message');
+                const playerCard = document.getElementById('current-player-card');
+
+                if (itemData && itemData.name) {
+                    noItemMsg.style.display = 'none';
+                    playerCard.style.display = 'block';
+                    
+                    document.getElementById('item-name').textContent = itemData.name;
+                    document.getElementById('item-base-bid').textContent = `₹${itemData.base_bid ? itemData.base_bid.toLocaleString() : '0'}`;
+                    
+                    const playerImg = document.getElementById('item-photo');
+                    if (itemData.photo_path) {
+                        playerImg.src = itemData.photo_path;
+                        playerImg.style.display = 'block';
+                    } else {
+                        playerImg.style.display = 'none';
+                    }
+
+                    // Animate player card entrance
+                    playerCard.classList.add('player-entrance');
+                    setTimeout(() => {
+                        playerCard.classList.remove('player-entrance');
+                    }, 1000);
+                } else {
+                    noItemMsg.style.display = 'block';
+                    playerCard.style.display = 'none';
+                }
+            }
+
+            function updateBiddingStatusDisplay(bidStatus) {
+                if (bidStatus && bidStatus.bid_amount) {
+                    document.getElementById('current-bid-amount').textContent = `₹${bidStatus.bid_amount.toLocaleString()}`;
+                    
+                    if (bidStatus.highest_bidder_name) {
+                        showBidAnimation(bidStatus.highest_bidder_name, bidStatus.bid_amount);
+                    }
+                } else {
+                    document.getElementById('current-bid-amount').textContent = '₹0';
+                }
+            }
+
+            function showBidAnimation(teamName, bidAmount) {
+                // Clear existing timeout
+                if (currentBidTimeout) {
+                    clearTimeout(currentBidTimeout);
+                }
+
+                // Find team card and show bid indicator
+                const teamCard = document.querySelector(`[data-team-name="${teamName}"]`);
+                if (teamCard) {
+                    const bidIndicator = teamCard.querySelector('.bid-indicator');
+                    bidIndicator.textContent = `₹${bidAmount.toLocaleString()}`;
+                    bidIndicator.classList.add('active');
+                    teamCard.classList.add('bidding');
+
+                    // Remove animation after 3 seconds
+                    currentBidTimeout = setTimeout(() => {
+                        bidIndicator.classList.remove('active');
+                        teamCard.classList.remove('bidding');
+                    }, 3000);
+                }
+            }
+
+            function showSoldAnimation(soldData) {
+                const overlay = document.getElementById('sold-overlay');
+                
+                // Populate sold animation data
+                document.getElementById('sold-player-name').textContent = soldData.player_name;
+                document.getElementById('sold-team-name').textContent = soldData.winning_team_name;
+                document.getElementById('sold-price').textContent = `₹${soldData.sold_price.toLocaleString()}`;
+                
+                if (soldData.player_photo_path) {
+                    document.getElementById('sold-player-image').src = soldData.player_photo_path;
+                }
+                if (soldData.winning_team_logo_path) {
+                    document.getElementById('sold-team-logo').src = soldData.winning_team_logo_path;
+                }
+
+                // Show animation
+                overlay.classList.add('active');
+                
+                // Hide after 5 seconds
+                setTimeout(() => {
+                    overlay.classList.remove('active');
+                }, 5000);
+            }
+
+            function updateSoldTicker(soldData) {
+                const tickerList = document.getElementById('ticker-list');
+                const newItem = document.createElement('li');
+                newItem.innerHTML = `<strong>${soldData.player_name}</strong> → <em>${soldData.winning_team_name}</em> (₹${soldData.sold_price.toLocaleString()})`;
+                
+                tickerList.insertBefore(newItem, tickerList.firstChild);
+                
+                // Keep only 10 items
+                while (tickerList.children.length > 10) {
+                    tickerList.removeChild(tickerList.lastChild);
+                }
+            }
+
+            function handleItemPassed(data) {
+                console.log(`Item passed: ${data.item_name}`);
+                // Could add a "PASSED" animation here
+            }
+
+            function showTeamModal(teamName, teamsData) {
+                const team = teamsData[teamName];
+                const modal = document.getElementById('team-modal');
+                
+                document.getElementById('modal-team-name').textContent = teamName;
+                document.getElementById('modal-team-funds').textContent = `₹${team.money.toLocaleString()}`;
+                
+                if (team.logo_path) {
+                    document.getElementById('modal-team-logo').src = team.logo_path;
+                }
+
+                const rosterList = document.getElementById('modal-team-roster');
+                rosterList.innerHTML = '';
+                
+                if (team.inventory && Object.keys(team.inventory).length > 0) {
+                    Object.entries(team.inventory).forEach(([player, price]) => {
+                        const li = document.createElement('li');
+                        li.innerHTML = `<span class="player-name">${player}</span><span class="player-price">₹${price.toLocaleString()}</span>`;
+                        rosterList.appendChild(li);
+                    });
+                } else {
+                    rosterList.innerHTML = '<li class="no-players">No players acquired yet</li>';
+                }
+
+                modal.classList.add('active');
+            }
+
+            // Modal close functionality
+            document.getElementById('close-modal').addEventListener('click', () => {
+                document.getElementById('team-modal').classList.remove('active');
+            });
+
+            document.querySelector('.modal-backdrop').addEventListener('click', () => {
+                document.getElementById('team-modal').classList.remove('active');
+            });
+        });
+    </script>
 </body>
 </html>
