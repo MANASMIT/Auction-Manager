@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchMyTeamStatus();
         if (otherTeamsDropdown) fetchAllTeamsDataForDropdown();
     });
-
+    
     socket.on('connect_error', (err) => {
         console.error(`Manager ${MY_TEAM_NAME}: Connection Error: ${err.message}`);
         if (err.message.includes("Invalid token") || err.message.includes("refused")) {
@@ -55,6 +55,12 @@ document.addEventListener('DOMContentLoaded', () => {
         console.warn(`Manager ${MY_TEAM_NAME}: Access Revoked by Admin: ${data.message}`);
         document.body.innerHTML = `<h1>Access Revoked: ${data.message}</h1>`;
         socket.disconnect(); // Disconnect the socket
+    });
+
+    socket.on('reload_all_team_status', () => {
+        // refresh all team status after loading history
+        fetchMyTeamStatus();
+        if (otherTeamsDropdown) fetchAllTeamsDataForDropdown();
     });
 
     socket.on('disconnect', () => {

@@ -634,8 +634,8 @@ Team name,Team starting money,{TEAM_LOGO_PATH_KEY}
 # ^ This line above is the REQUIRED header for all the sections. Do not change its format.
 # Add your team data below, one team per line:
 # (Optional) Logo format '[Team-name-logo.ext]'; location static/images directory.
-Team Alpha,5000,path/to/logos/Team-Alpha-logo.png
-Team Bravo,4800,path/to/logos/Team-Bravo-logo.jpg
+Team Alpha,5000,Team-Alpha-logo.png
+Team Bravo,4800,Team-Bravo-logo.jpg
 Team Charlie,5200,Team-Charlie-logo.gif
 
 {LOG_SECTION_PLAYERS_INITIAL}

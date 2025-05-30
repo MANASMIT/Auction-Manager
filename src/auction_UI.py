@@ -928,9 +928,13 @@ class AuctionApp(tk.Frame):
         # Emit state to webview if server is running
         if self.flask_server_running and self.socketio_instance:
             # Ensure this is scheduled if refresh_all_ui_displays can be called from non-main thread
-            # However, most UI actions triggering this are already in main thread.
-             self._emit_full_state_to_webview()
-
+            self._emit_full_state_to_webview()
+            if self.presenter_active:
+                self.socketio_instance.emit('reload_all_team_status', namespace='/presenter')
+            
+            if self.manager_access_enabled:
+                self.socketio_instance.emit('reload_all_team_status', namespace='/manager')
+            
     def _emit_full_state_to_webview(self):
         if not self.socketio_instance or not self.flask_server_running:
             # print("DEBUG UI: SocketIO not ready or server not running, cannot emit.") # Keep for debugging if needed
