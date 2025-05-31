@@ -965,7 +965,6 @@ class AuctionApp(tk.Frame):
         if self.flask_server_running and self.socketio_instance:
             # Ensure this is scheduled if refresh_all_ui_displays can be called from non-main thread
             self._emit_full_state_to_webview()
-           
             
     def _emit_full_state_to_webview(self):
         if not self.socketio_instance or not self.flask_server_running:
@@ -1184,11 +1183,8 @@ class AuctionApp(tk.Frame):
             item_name, winner, bid, message = self.engine.sell_current_item()
             messagebox.showinfo("Item Sold", message, parent=self)
             
-            player_data_engine = self.engine.players_initial_info.get(item_name) # Engine has sold it, so it's no longer current_item_name
-            player_photo_web_path = self._get_web_path(player_data_engine.get(PLAYER_PHOTO_PATH_KEY)) if player_data_engine else None
-            team_data_engine = self.engine.teams_data.get(winner)
-            team_logo_web_path = self._get_web_path(team_data_engine.get(TEAM_LOGO_PATH_KEY)) if team_data_engine else None
-
+            player_photo_web_path = self._get_web_path(item_name, is_logo=False) 
+            team_logo_web_path = self._get_web_path(winner, is_logo=True)
             sold_data_for_event = {
                 'player_name': item_name,
                 'player_photo_path': player_photo_web_path,
@@ -1198,7 +1194,7 @@ class AuctionApp(tk.Frame):
             }
         except AuctionError as e: messagebox.showerror("Sell Error", str(e), parent=self)
         finally:
-            self.refresh_all_ui_displays() # Emits full state (clearing current item)
+            self.refresh_all_ui_displays() 
             if sold_data_for_event and self.socketio_instance and self.flask_server_running:
                 # print(f"DEBUG UI (Tkinter): Emitting 'item_sold_event': {sold_data_for_event}")
                 self.socketio_instance.emit('item_sold_event', sold_data_for_event, namespace='/presenter')
