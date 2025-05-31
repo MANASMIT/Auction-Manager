@@ -1,81 +1,149 @@
-# Auction Command 🏏⚽️🏆
+# Auction Command - v1.6
 
-Auction Command is a desktop application designed to manage player auctions smoothly and efficiently, with optional web-based views for presenters and team managers. It's ideal for sports leagues, fantasy drafts, or any scenario requiring a structured bidding process.
+[![License](https://img.shields.io/badge/License-Apache%202.0-green)](https://github.com/YouFoundJK/Auction-Command/blob/main/LICENSE)
+[![Docs](https://img.shields.io/badge/Documentation-v_1.6-blue)](https://youfoundjk.github.io/Auction-Command/)
 
-## ✨ Features
+**Auction Command** is a desktop application designed to streamline player auctions with powerful admin controls and optional real-time web interfaces for team managers and audiences. Whether you're managing a sports league, fantasy draft, or any structured bidding event, Auction Command provides a robust and user-friendly auctioning experience.
 
-*   **Intuitive Admin Panel (Tkinter GUI):**
-    *   Load auction setup from a CSV file (teams, players, starting money, base bids).
-    *   Clear overview of teams, available players, and current bidding status.
-    *   Select players for auction.
-    *   Place bids for teams directly from the admin panel.
-    *   Sell items to the highest bidder or pass items.
-    *   Undo the last bid.
-    *   Customizable bid increment rules.
-    *   Automatic logging of all auction states and events to a `.auctionlog` file.
-    *   Resume auctions from log files.
-    *   View auction history from logs.
-*   **Optional Web-Based Presenter View:**
-    *   Live, read-only stream of the auction for an audience.
-    *   Displays current item (with photo), bidding status (highest bidder with logo), and a ticker of recently sold items.
-    *   Accessible via a web browser on the local network.
-*   **Optional Web-Based Team Manager View:**
-    *   Secure, unique access links for each team manager.
-    *   Displays their team's status (funds, roster, logo).
-    *   Shows current item for bidding and overall bidding status.
-    *   Allows managers to place bids for their team directly from their web browser.
-    *   Calculates and displays the "next potential bid" and "money left after bid" for easier decision-making.
-    *   Ability to view other teams' rosters.
-*   **Offline HTML Documentation:**
-    *   Built-in help accessible from the admin panel, detailing setup and features.
-*   **Image Handling:**
-    *   Supports team logos and player profile photos in web views.
-    *   Images are served from a local `static/images` directory and cached by browsers.
 
-**Image Setup:**
+## 🚀 Quick Start
+1. Download the latest Release from [here](https://github.com/YouFoundJK/Auction-Command/releases/latest).
+2. Extract it and run the executable file.
+3. Use 'START NEW ACTION' -> 'View .csv format help' then 'Browse Setup File' and load the `.csv` file that has appeared next to the executable file.
+4. You are ready to go. Enjoy!
 
-1.  Create a directory structure `static/images/` in the root of the project directory (alongside `auction_UI.py`).
-2.  Place all your team logo files and player photo files into this `static/images/` directory.
-3.  In your auction setup CSV, for `Logo Path` and `Profile Photo Path` columns, specify **only the filename** (e.g., `My-Team-Logo.png`, `Player-One.jpg`).
+---
 
-## 🚀 Running the Application
+## Key Features
 
-1.  **Activate your virtual environment** (if you created one).
-2.  **Run the main UI script:**
-    ```bash
-    python auction_UI.py
-    ```
-3.  **To generate a CSV template (optional):**
-    ```bash
-    python auction_engine.py -t -o my_auction_template.csv
-    ```
-    This will create `my_auction_template.csv` in the current directory. Fill it out according to the format specified in the template and the built-in documentation.
+### 🎛️ Admin Panel (Desktop App - Tkinter)
 
-## 📄 CSV File Format
+* Load auction data from a CSV file (teams, players, budget, base bids).
+* Live dashboard with bidding status, available players, and team funds.
+* Run auctions smoothly:
 
-The application uses a CSV file to load initial auction data. Key sections include:
+  * Select players for auction.
+  * Place and track bids.
+  * Sell or pass items.
+  * Undo previous bids.
+* Supports custom bid increment rules.
+* Logs all auction actions to a `.auctionlog` file.
+* Resume auctions from saved logs.
+* View full bidding history.
 
-*   `[CONFIG]`: Auction name.
-*   `[TEAMS_INITIAL]`: Team names, starting money, and logo filenames.
-*   `[PLAYERS_INITIAL]`: Player names, base bid values, and profile photo filenames.
-*   `[BID_INCREMENT_RULES]`: (Optional) Custom bid increment thresholds and values.
+### 🌐 Web-Based Interfaces (Optional)
 
-Refer to the built-in documentation (Help > Documentation in the app) or the generated template for detailed formatting.
+#### Presenter View
 
-## 🌐 Using Webview Features
+* Read-only, real-time stream for audiences.
+* Displays:
 
-1.  From the admin panel's top menu:
-    *   **Presenter View:** Click "Start Presenter Webview". Access at `http://<your_pc_ip>:5000/presenter`.
-    *   **Team Manager View:**
-        *   Click "Enable Manager Access".
-        *   Click "Show Manager Links" to get unique URLs for each team manager.
-        *   Share these URLs with the respective managers. They can access their view at `http://<your_pc_ip>:5000/manager/<TeamName>/<AccessToken>`.
-2.  Ensure your PC's firewall allows connections on port 5000 (or the configured port) if accessing from other devices on the network.
+  * Current player (with photo)
+  * Highest bid and bidder (with logo)
+  * Ticker of recently sold players
+* Accessible over local network via web browser.
+
+#### Team Manager View
+
+* Unique, secure access links per team.
+* Allows team managers to:
+
+  * View their roster, budget, and bid status.
+  * Place live bids.
+  * Preview potential bids and remaining funds.
+  * View other team rosters.
+* Web interface accessible from any browser on the local network.
+
+### 🖼️ Image Support
+
+* Display team logos and player photos in the web views.
+* Files served from a local `static/images/` directory.
+* Browsers automatically cache assets for performance.
+
+---
+
+## 📁 Directory Structure for Images
+
+1. Create a folder:
+
+   ```
+   static/images/
+   ```
+2. Place all image files (team logos and player photos) here.
+3. In your CSV setup, refer to images using **just the filename**:
+   Example: `Team-Logo.png`, `Player1.jpg`
+
+---
+
+## 📄 CSV Format
+
+The auction setup is based on a structured CSV file. Key sections include:
+
+* `[CONFIG]` – General auction settings (e.g., auction name).
+* `[TEAMS_INITIAL]` – List of teams with their starting money and logo image.
+* `[PLAYERS_INITIAL]` – Player list with base bid values and profile photo names.
+* `[BID_INCREMENT_RULES]` – *(Optional)* Define bid increments based on price ranges.
+
+💡 Use the built-in documentation or generate a template to ensure correct formatting.
+
+---
+## 🌐 Webview Setup
+
+Access web features from the Admin Panel's top menu:
+
+### Presenter View
+
+* Go to:
+  `Admin Panel > Start Presenter Webview`
+* Access in browser at:
+
+  ```
+  http://<your_pc_ip>:5000/presenter
+  ```
+
+### Team Manager View
+
+* Enable access:
+  `Admin Panel > Enable Manager Access`
+* Show secure team URLs:
+  `Admin Panel > Show Manager Links`
+* Team managers access their dashboards at:
+
+  ```
+  http://<your_pc_ip>:5000/manager/<TeamName>/<AccessToken>
+  ```
+
+> 🛡️ Ensure firewall settings allow connections to port 5000 for local network access.
+
+---
+
+## 📚 Documentation
+
+Check [here](https://youfoundjk.github.io/Auction-Command/) or access the same offline within the app at:
+
+```
+Admin Panel > Help > Documentation
+```
+
+Includes instructions for:
+
+* CSV formatting
+* Image setup
+* Webview configuration
+* Resuming from logs
+
+---
 
 ## 🤝 Contributing
 
-Contributions, issues, and feature requests are welcome! Please feel free to check the [issues page](https://your-github-repo-url/AuctionCommand/issues).
+We welcome contributions, bug reports, and feature requests!
+Feel free to [submit an issue](https://github.com/YouFoundJK/AuctionCommand/issues) or fork the repo and open a merge request.
+---
 
-## 📝 License
+## 🛠️ Tech Stack
 
-Provided under MIT License.
+* **Frontend:** Tkinter (desktop), HTML/CSS (webviews)
+* **Backend:** Python (Flask for web interface)
+* **File Handling:** CSV for data, local file system for images
+* **Logging:** Custom `.auctionlog` format for state saving and recovery
+
