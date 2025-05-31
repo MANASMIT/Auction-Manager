@@ -4,89 +4,140 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ my_team_name }} - Manager View | {{ auction_name }}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/manager.css') }}">
+    <script src="{{ url_for('static', filename='js/socket.io.js') }}"></script>
 </head>
 <body>
-    <header>
-        <h1>{{ auction_name }} - Manager: {{ my_team_name }}</h1>
+    <header class="header">
+        <div class="header-content">
+            <div class="live-indicator">
+                <div class="live-dot"></div>
+                LIVE AUCTION
+            </div>
+            <div class="team-info">
+                <span>{{ my_team_name }}</span>
+                <span class="team-funds" id="my-team-funds">Loading...</span>
+            </div>
+        </div>
     </header>
 
-    <main>
-        <section id="my-team-status" class="card">
-            <h2>My Team: {{ my_team_name }}</h2>
-            <p>Funds: <span id="my-team-funds">Loading...</span></p>
-            <div id="my-team-logo-container">
-                <img id="my-team-logo" src="#" alt="{{ my_team_name }} Logo" style="display:none;">
-            </div>
-            <h3>My Roster:</h3>
-            <ul id="my-team-roster">
-                <!-- My roster items -->
-            </ul>
-        </section>
+    <main class="main-container">
+        <!-- Current Player Section - Always Visible Structure -->
+        <div class="player-card">
+            <div id="player-content"> <!-- This div is now always effectively visible -->
+                <img id="item-photo" src="#" alt="Player Photo" class="player-image" style="display:block;"> <!-- Image display controlled by JS -->
+                <h2 id="item-name" class="player-name">Waiting for Player...</h2>
+                
+                <div class="bid-info-grid">
+                    <div class="bid-info-item">
+                        <div class="bid-label">Base Bid</div>
+                        <div id="item-base-bid" class="bid-value">₹--</div>
+                    </div>
+                    <div class="bid-info-item">
+                        <div class="bid-label">Current Bid</div>
+                        <div id="current-bid-amount" class="bid-value">₹--</div>
+                    </div>
+                </div>
 
-        <section id="current-item-section">
-            <h2>Current Item for Bidding</h2>
-            <div id="item-details" class="card">
-                <p id="no-item-message">No item selected for bidding.</p>
-                <img id="item-photo" src="#" alt="Player Photo" style="display:none;">
-                <h3 id="item-name"></h3>
-                <p>Base Bid: <span id="item-base-bid"></span></p>
-                <!-- Existing Bidding Status info is in its own section -->
-                <button id="bid-button" disabled>Place Bid for {{ my_team_name }}</button>
-                <p>If you bid, next bid will be: <strong id="next-bid-value">--</strong></p> <!-- NEW -->
-                <p>Money left after this bid: <strong id="money-left-after-bid">--</strong></p> <!-- NEW -->
-                <p id="bid-feedback" class="feedback-message"></p>
-            </div>
-        </section>
+                <!-- current-bidder-section is always visible, content changes -->
+                <div id="current-bidder-section" class="current-bidder-section"> 
+                    <div class="current-bidder-label">Current Highest Bidder</div>
+                    <div id="highest-bidder-name" class="current-bidder-name">--</div>
+                </div>
 
-        <section id="bidding-status-section">
-            <h2>Bidding Status</h2>
-            <div id="bid-info" class.card">
-                <p>Current Bid: <span id="current-bid-amount">₹0</span></p>
-                <p>Highest Bidder: <span id="highest-bidder-name">--</span></p>
-                <img id="bidder-logo" src="#" alt="Bidder Logo" style="display:none;">
+                <div class="bid-action-section">
+                    <div class="next-bid-info">
+                        <span class="next-bid-label">Your next bid:</span>
+                        <span id="next-bid-value" class="next-bid-value">--</span>
+                    </div>
+                    
+                    <div class="money-left-info">
+                        <span class="money-left-label">Money left after bid:</span>
+                        <span id="money-left-after-bid" class="money-left-value">--</span>
+                    </div>
+                    
+                    <button id="bid-button" class="bid-button" disabled>
+                        Place Bid for {{ my_team_name }}
+                    </button>
+                    
+                    <!-- bid-feedback is always visible, content changes -->
+                    <div id="bid-feedback" class="feedback-message">--</div> 
+                </div>
             </div>
-        </section>
-        
-        <section id="other-teams-section">
-            <h2>View Other Teams</h2>
-            <select id="other-teams-dropdown">
-                <option value="">-- Select a team --</option>
-                {% for team in all_team_names %}
-                    {% if team != my_team_name %}
-                        <option value="{{ team }}">{{ team }}</option>
-                    {% endif %}
-                {% endfor %}
-            </select>
-            <div id="other-team-info" class="card" style="display:none;">
-                <h3 id="other-team-name-display"></h3>
-                <p>Funds: <span id="other-team-funds"></span></p>
-                <img id="other-team-logo-display" src="#" alt="Team Logo" style="display:none;">
-                <h4>Roster:</h4>
-                <ul id="other-team-roster-display"></ul>
-            </div>
-        </section>
+        </div>
 
-        <section id="sold-ticker-section">
-            <h2>Recently Sold</h2>
-            <div id="sold-ticker" class="card">
-                <ul>
-                    <!-- Sold items will be added here by JS -->
+        <!-- Expandable Sections (remain the same) -->
+        <div class="expandable-sections">
+            <!-- My Team Section -->
+            <button class="section-toggle" onclick="toggleSection('my-team-content')">
+                My Roster
+                <span class="chevron">▼</span>
+            </button>
+            <div id="my-team-content" class="section-content">
+                <ul id="my-team-roster" class="roster-list">
+                    <!-- Roster items will be added here by manager.js -->
                 </ul>
             </div>
-        </section>
+
+            <!-- Other Teams Section -->
+            <button class="section-toggle" onclick="toggleSection('other-teams-content')">
+                Other Teams
+                <span class="chevron">▼</span>
+            </button>
+            <div id="other-teams-content" class="section-content">
+                <select id="other-teams-dropdown" class="other-teams-dropdown">
+                    <option value="">-- Select a team --</option>
+                    {% for team in all_team_names %}
+                        {% if team != my_team_name %}
+                            <option value="{{ team }}">{{ team }}</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+                <div id="other-team-info" style="display:none;">
+                    <h3 id="other-team-name-display"></h3>
+                    <p>Funds: <span id="other-team-funds"></span></p>
+                    <ul id="other-team-roster-display" class="roster-list"></ul>
+                </div>
+            </div>
+
+            <!-- Recently Sold Section -->
+            <button class="section-toggle" onclick="toggleSection('sold-ticker-content')">
+                Recently Sold
+                <span class="chevron">▼</span>
+            </button>
+            <div id="sold-ticker-content" class="section-content">
+                <div id="sold-ticker" class="sold-ticker">
+                    <ul>
+                        <!-- Sold items will be added here by manager.js -->
+                    </ul>
+                </div>
+            </div>
+        </div>
     </main>
 
-    <footer>
-        <p>Team Manager View for {{ my_team_name }}</p>
-    </footer>
+    <!-- Hidden elements for compatibility if needed -->
+    <img id="bidder-logo" style="display: none;" alt="Bidder Logo">
+    <img id="my-team-logo" style="display: none;" alt="My Team Logo">
+    <img id="other-team-logo-display" style="display: none;" alt="Other Team Logo">
+
     <script>
         // Pass the team name to JavaScript
         const MY_TEAM_NAME = "{{ my_team_name }}";
-        // const ACCESS_TOKEN = "{{ access_token }}"; // JS now gets this from URL path
+        
+        function toggleSection(sectionContentId) {
+            const sectionContent = document.getElementById(sectionContentId);
+            const button = sectionContent.previousElementSibling; 
+            const chevron = button.querySelector('.chevron');
+            
+            if (sectionContent.classList.contains('active')) {
+                sectionContent.classList.remove('active');
+                chevron.classList.remove('rotated');
+            } else {
+                sectionContent.classList.add('active');
+                chevron.classList.add('rotated');
+            }
+        }
     </script>
-    <script src="{{ url_for('static', filename='js/common.js') }}"></script>
     <script src="{{ url_for('static', filename='js/manager.js') }}"></script>
 </body>
 </html>
