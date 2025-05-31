@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auction Presenter: Live Auction</title>
+    <link rel="icon" href="\assets\auction-command-icon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="\assets\auction-command-icon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="static/css/presenter_view.css">
+    <script src="static/js/socket.io.js"></script>
+</head>
+<body class="dark-theme">
+    <!-- Theme Toggle -->
+    <div class="theme-toggle">
+        <button id="theme-toggle-btn" aria-label="Toggle theme">
+            <span class="sun-icon">☀️</span>
+            <span class="moon-icon">🌙</span>
+        </button>
+    </div>
+
+    <!-- Header Section -->
+    <header class="auction-header">
+        <div class="organizer-logo left">
+            <img src="/static/images/logo_placeholder_left.png" alt="Organizer Logo" id="left-logo">
+        </div>
+        <div class="auction-title">
+            <h1 id="auction-name">{{ auction_name }}</h1>
+            <div class="live-indicator">
+                <span class="live-dot"></span>
+                <span>LIVE</span>
+            </div>
+        </div>
+        <div class="organizer-logo right">
+            <img src="/static/images/logo_placeholder_right.png" alt="Organizer Logo" id="right-logo">
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="auction-main">
+        <!-- Desktop-specific layout grid -->
+        <div class="presenter-view-grid">
+            <div id="teams-container-left" class="teams-column teams-column-left">
+                <!-- JS populates team cards here for desktop left -->
+            </div>
+
+            <section class="current-player-section">
+                <div id="no-item-message" class="no-player-message">
+                    <h2>Waiting for next player...</h2>
+                    <div class="pulse-animation"></div>
+                </div>
+                
+                <div id="current-player-card" class="player-card" style="display: none;">
+                    <div class="player-image-container">
+                        <img id="item-photo" src="#" alt="Player Photo">
+                        <div class="player-overlay">
+                            <h2 id="item-name">Player Name</h2>
+                            <div class="bid-info">
+                                <div class="base-bid">
+                                    <span class="label">Base Bid</span>
+                                    <span id="item-base-bid" class="amount">₹0</span>
+                                </div>
+                                <div class="current-bid">
+                                    <span class="label">Current Bid</span>
+                                    <span id="current-bid-amount" class="amount">₹0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <div id="teams-container-right" class="teams-column teams-column-right">
+                <!-- JS populates team cards here for desktop right -->
+            </div>
+
+            <div id="teams-container-bottom" class="teams-row-bottom flexible-columns">
+                <!-- JS populates team cards here for desktop bottom -->
+            </div>
+        </div>
+
+        <!-- Mobile/Fallback Teams Section -->
+        <section class="teams-section mobile-only-teams">
+            <div id="teams-container-mobile" class="teams-grid">
+                <!-- Teams will be populated here by JS for mobile -->
+            </div>
+        </section>
+
+
+        <!-- Sold Animation Overlay -->
+        <div id="sold-overlay" class="sold-overlay">
+            <canvas id="fireworksCanvas"></canvas>
+            <div class="sold-content">
+                <div class="sold-player">
+                    <img id="sold-player-image" src="#" alt="Sold Player">
+                    <h3 id="sold-player-name">Player Name</h3>
+                </div>
+                <div class="sold-text">
+                    <h1> SOLD TO </h1>
+                    <p id="sold-price">₹0</p>
+                </div>
+                <div class="sold-team">
+                    <img id="sold-team-logo" src="#" alt="Team Logo">
+                    <h3 id="sold-team-name">Team Name</h3>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recently Sold Ticker -->
+        <div id="sold-ticker" class="sold-ticker">
+            <div class="ticker-content">
+                <span class="ticker-title">Recently Sold:</span>
+                <div class="ticker-items">
+                    <ul id="ticker-list">
+                        <!-- Ticker items will be added here -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bidding Animation Overlay (Unused visually in current CSS, but kept for potential future use) -->
+        <div id="bid-overlay" class="bid-overlay">
+            <div class="bid-amount">₹<span id="bid-amount-value">0</span></div>
+        </div>
+    </main>
+
+    <!-- Team Details Modal -->
+    <div id="team-modal" class="team-modal">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <img id="modal-team-logo" src="#" alt="Team Logo">
+                <div class="team-info">
+                    <h2 id="modal-team-name">Team Name</h2>
+                    <p class="team-funds">Available Funds: <span id="modal-team-funds">₹0</span></p>
+                </div>
+                <button class="close-btn" id="close-modal">×</button>
+            </div>
+            <div class="modal-body">
+                <h3>Player Roster</h3>
+                <ul id="modal-team-roster" class="roster-list">
+                    <!-- Roster will be populated here -->
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/presenter.js') }}"></script>
+</body>
+</html>
