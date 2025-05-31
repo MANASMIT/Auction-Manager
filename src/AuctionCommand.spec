@@ -42,7 +42,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='AuctionCommand_v1.6',
+    name='AuctionCommand_v1.7',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False, # Set to True for smaller exe, False for easier debugging

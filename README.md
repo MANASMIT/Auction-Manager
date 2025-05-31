@@ -1,7 +1,7 @@
-# Auction Command - v1.6
+# Auction Command - v1.7
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-green)](https://github.com/YouFoundJK/Auction-Command/blob/main/LICENSE)
-[![Docs](https://img.shields.io/badge/Documentation-v_1.6-blue)](https://youfoundjk.github.io/Auction-Command/)
+[![Docs](https://img.shields.io/badge/Documentation-v_1.7-blue)](https://youfoundjk.github.io/Auction-Command/)
 
 **Auction Command** is a desktop application designed to streamline player auctions with powerful admin controls and optional real-time web interfaces for team managers and audiences. Whether you're managing a sports league, fantasy draft, or any structured bidding event, Auction Command provides a robust and user-friendly auctioning experience.
 
