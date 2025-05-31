@@ -11,7 +11,10 @@ a = Analysis(
     ['auction_UI.py'],
     pathex=[],  # Let PyInstaller determine this, or set your project root
     binaries=[],
-    datas=[('static/images/auction-command-icon.ico', '.'),],
+    datas=[
+        ('static/images/auction-command-icon.ico', '.'),
+        ( 'assets', 'assets' ),
+    ],
     hiddenimports=[
         'engineio.async_drivers.threading',
         'flask_socketio',
@@ -47,7 +50,7 @@ exe = EXE(
     upx_exclude=[],
     runtime_tmpdir=None,
     console=False, # For GUI, no console window
-    icon='static/images/auction-command-icon.ico'
+    icon='assets/auction-command-icon.ico'
 )
 
 # If you want a one-folder bundle (recommended for easier distribution of external files):

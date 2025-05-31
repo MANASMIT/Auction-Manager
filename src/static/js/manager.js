@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let allTeamsDataCache = {};
 
     // UI Element Getters
-    const DEFAULT_PLAYER_PHOTO = '/static/images/default_player.png'; // CHANGE THIS Later
+    const DEFAULT_PLAYER_PHOTO = '/assets/default-player.png';
     const myTeamFundsEl = document.getElementById('my-team-funds');
     
     // const noItemMessageEl = document.getElementById('no-item-message'); // REMOVED
@@ -76,9 +76,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateManagerCurrentItemDisplay(itemData) {
         const newPlayerName = (itemData && itemData.name) ? itemData.name : null;
-        const newPhotoPath = (itemData && itemData.photo_path && itemData.photo_path.trim() !== '' && itemData.photo_path !== '#') 
-                               ? itemData.photo_path 
-                               : DEFAULT_PLAYER_PHOTO;
+        let newPhotoPath = itemData ? itemData.photo_path : DEFAULT_PLAYER_PHOTO;
+
+        if (itemData && itemData.photo_path && itemData.photo_path.trim() !== '' && itemData.photo_path !== '#') {
+            const img = new Image();
+            img.onload = () => {
+                newPhotoPath = itemData.photo_path;
+            };
+            img.onerror = () => {
+                newPhotoPath = DEFAULT_PLAYER_PHOTO;
+            };
+            img.src = itemData.photo_path;
+        } else {
+            newPhotoPath = DEFAULT_PLAYER_PHOTO;
+        }
 
         // Always ensure the image element is visible
         if (itemPhotoEl) {

@@ -13,6 +13,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let allTeamsData = {};
     let currentDisplayedItemName = null;
     const teamCardAnimationTimeouts = {};
+    const DEFAULT_PLAYER_PHOTO = '/assets/default-player.png';
+    const DEFAULT_TEAM_LOGO = '/assets/default-team-logo.png';
 
     socket.on('connect', () => {
         console.log('Connected to Presenter SocketIO server');
@@ -62,14 +64,14 @@ document.addEventListener('DOMContentLoaded', () => {
         teamCard.className = 'team-card';
         teamCard.dataset.teamName = teamName;
     
-        const logoPath = team.logo_path || '/static/images/default_item.jpeg';
+        const logoPath = team.logo_path || DEFAULT_TEAM_LOGO;
     
         // Create image element separately to load and check validity
         const img = new Image();
         img.alt = `${teamName} logo`;
     
         img.onerror = () => {
-            img.src = '/static/images/default_item.jpeg'; // fallback if image fails to load
+            img.src = DEFAULT_TEAM_LOGO; // fallback if image fails to load
         };
     
         img.src = logoPath;
@@ -200,10 +202,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 playerImg.style.display = 'block';
             };
             img.onerror = () => {
-                playerImg.src = '/static/images/default_item.jpeg';
+                playerImg.src = DEFAULT_PLAYER_PHOTO;
                 playerImg.style.display = 'block';
             };
-            img.src = itemData.photo_path || '/static/images/default_item.jpeg';
+            img.src = itemData.photo_path || DEFAULT_PLAYER_PHOTO;
     
             if (newItemName !== currentDisplayedItemName) {
                 playerCard.classList.add('player-entrance');
@@ -326,10 +328,10 @@ document.addEventListener('DOMContentLoaded', () => {
             soldPlayerImage.style.display = 'block';
         };
         playerImage.onerror = () => {
-            soldPlayerImage.src = '/static/images/default_item.jpeg';
+            soldPlayerImage.src = DEFAULT_PLAYER_PHOTO;
             soldPlayerImage.style.display = 'block';
         };
-        playerImage.src = soldData.player_photo_path || '/static/images/default_item.jpeg';
+        playerImage.src = soldData.player_photo_path || DEFAULT_PLAYER_PHOTO;
     
         // Handle team logo
         const soldTeamLogo = document.getElementById('sold-team-logo');
@@ -339,10 +341,10 @@ document.addEventListener('DOMContentLoaded', () => {
             soldTeamLogo.style.display = 'block';
         };
         teamLogo.onerror = () => {
-            soldTeamLogo.src = '/static/images/default_item.jpeg';
+            soldTeamLogo.src = DEFAULT_TEAM_LOGO;
             soldTeamLogo.style.display = 'block';
         };
-        teamLogo.src = soldData.winning_team_logo_path || '/static/images/default_item.jpeg';
+        teamLogo.src = soldData.winning_team_logo_path || DEFAULT_TEAM_LOGO;
     
         overlay.classList.add('active');
     
@@ -399,11 +401,19 @@ document.addEventListener('DOMContentLoaded', () => {
     
         document.getElementById('modal-team-name').textContent = teamName;
         document.getElementById('modal-team-funds').textContent = `₹${team.money.toLocaleString()}`;
-    
+        
+        const teamLogo = document.getElementById('modal-team-logo');
         if (team.logo_path) {
-            document.getElementById('modal-team-logo').src = team.logo_path;
+            const img = new Image();
+            img.onload = () => {
+                teamLogo.src = team.logo_path;
+            };
+            img.onerror = () => {
+                teamLogo.src = DEFAULT_TEAM_LOGO;
+            };
+            img.src = team.logo_path;
         } else {
-            document.getElementById('modal-team-logo').src = '/static/images/default-item.jpeg'; // Fallback
+            teamLogo.src = DEFAULT_TEAM_LOGO;
         }
     
     

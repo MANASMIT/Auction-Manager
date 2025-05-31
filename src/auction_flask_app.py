@@ -1,7 +1,7 @@
 # auction_flask_app.py
 
 import os, sys
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, send_from_directory
 from flask_socketio import SocketIO, emit
 import logging
 from flask import request as flask_request # Alias for clarity
@@ -31,6 +31,19 @@ def get_executable_directory():
         application_path = os.getcwd()
     return application_path
 
+def get_temp_directory():
+    '''
+    Get the temporary directory for the application.
+    - Bundled date in executable will be extracted to sys._MEIPASS
+    '''
+    if getattr(sys, 'frozen', False):
+        # Running as a PyInstaller bundle
+        return sys._MEIPASS
+    else:
+        # Development or running as script
+        return os.path.dirname(os.path.abspath(__file__))
+
+
 def create_flask_app(auction_app_ref):
     global tk_auction_app_instance, flask_socketio_instance
     tk_auction_app_instance = auction_app_ref
@@ -46,6 +59,8 @@ def create_flask_app(auction_app_ref):
     if not os.path.isdir(static_folder):
         print(f"WARNING: Static folder not found at {static_folder}")
 
+
+
     # --- Instantiate Flask App FIRST ---
     flask_app = Flask(__name__, template_folder=template_folder, static_folder=static_folder)
     flask_app.config['SECRET_KEY'] = os.urandom(24)
@@ -59,6 +74,13 @@ def create_flask_app(auction_app_ref):
     flask_socketio_instance = socketio
 
     # --- Now Define Routes ---
+    # Determine path to bundled or external 'assets/' directory
+
+    assets_path = os.path.join(get_temp_directory(), 'assets')
+    @flask_app.route('/assets/<path:filename>') # Route to serve assets
+    def serve_assets(filename):
+        return send_from_directory(assets_path, filename)
+    
     @flask_app.route('/')
     def index():
         return "Auction Webview Server. Presenter: /presenter. Manager: /manager/TeamName/AccessToken"
