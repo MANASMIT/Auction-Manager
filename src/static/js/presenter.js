@@ -137,6 +137,154 @@ document.addEventListener('DOMContentLoaded', () => {
     const PASSED_ITEM_MESSAGE_DURATION = 3000;
     const PLAYER_ENTRANCE_ANIMATION_DURATION = 1000;
 
+    // --- NEW: Canvas Fireworks Logic ---
+    let fireworksCanvasInstance = (function() {
+        let canvas, ctx;
+        let fireworks = [];
+        let particles = [];
+        let animationFrameId = null; // To store the requestAnimationFrame ID
+        let isRunning = false; // Flag to control the animation loop
+
+        // Classes for Firework and Particle (copied directly from index.js)
+        class Firework {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = canvas.height;
+                this.sx = Math.random() * 3 - 1.5;
+                this.sy = Math.random() * -3 - 3;
+                this.size = Math.random() * 2 + 1;
+                const colorVal = Math.round(0xffffff * Math.random());
+                [this.r, this.g, this.b] = [colorVal >> 16, (colorVal >> 8) & 255, colorVal & 255];
+                this.shouldExplode = false;
+            }
+            update() {
+                this.shouldExplode = this.sy >= -2 || this.y <= 100 || this.x <= 0 || this.x >= canvas.width;
+                this.sy += 0.01;
+                [this.x, this.y] = [this.x + this.sx, this.y + this.sy];
+            }
+            draw() {
+                ctx.fillStyle = `rgb(${this.r},${this.g},${this.b})`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        class Particle {
+            constructor(x, y, r, g, b) {
+                [this.x, this.y, this.sx, this.sy, this.r, this.g, this.b] = [x, y, Math.random() * 3 - 1.5, Math.random() * 3 - 1.5, r, g, b];
+                this.size = Math.random() * 2 + 1;
+                this.life = 100;
+            }
+            update() {
+                [this.x, this.y, this.life] = [this.x + this.sx, this.y + this.sy, this.life - 1];
+            }
+            draw() {
+                ctx.fillStyle = `rgba(${this.r}, ${this.g}, ${this.b}, ${this.life / 100})`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function animate() {
+            if (!isRunning) { // Stop animation if not running
+                return;
+            }
+
+            // Clear the canvas with a transparent fill
+            ctx.fillStyle = "rgba(0, 0, 0, 0.2)"; // Adjust alpha for fade effect
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Control the number of fireworks (adjust 0.25 for density)
+            if (Math.random() < 0.25) {
+                fireworks.push(new Firework());
+            }
+
+            fireworks.forEach((firework, i) => {
+                firework.update();
+                firework.draw();
+                if (firework.shouldExplode) {
+                    for (let j = 0; j < 50; j++) particles.push(new Particle(firework.x, firework.y, firework.r, firework.g, firework.b));
+                    fireworks.splice(i, 1);
+                }
+            });
+
+            particles.forEach((particle, i) => {
+                particle.update();
+                particle.draw();
+                if (particle.life <= 0) particles.splice(i, 1);
+            });
+
+            animationFrameId = requestAnimationFrame(animate);
+        }
+
+        function init() {
+            canvas = document.getElementById("fireworksCanvas");
+            if (!canvas) {
+                console.error("Fireworks canvas not found!");
+                return;
+            }
+            ctx = canvas.getContext("2d");
+
+            // Set initial size
+            canvas.width = soldOverlayEl.offsetWidth; // Use overlay's dimensions
+            canvas.height = soldOverlayEl.offsetHeight;
+
+            // Resize listener specifically for the overlay dimensions
+            // No need for window resize listener if canvas resizes with overlay
+            // But if the overlay is fixed, it will always be window dimensions anyway.
+            // So, for simplicity, tie it to window resize directly if it's full-screen.
+            window.addEventListener("resize", () => {
+                if(canvas) { // Ensure canvas exists if resize happens early
+                    canvas.width = window.innerWidth;
+                    canvas.height = window.innerHeight;
+                }
+            });
+            // If the sold overlay is not always 100% width/height, then this needs to be more dynamic.
+            // Given the current CSS, it effectively is window dimensions when active.
+        }
+
+        function start() {
+            if (!canvas || !ctx) {
+                init(); // Initialize if not already done
+                if (!canvas || !ctx) return; // Exit if init failed
+            }
+            if (!isRunning) {
+                isRunning = true;
+                fireworks = []; // Clear any old fireworks
+                particles = []; // Clear any old particles
+                animationFrameId = requestAnimationFrame(animate); // Start the loop
+            }
+        }
+
+        function stop() {
+            isRunning = false;
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+            // Clear canvas completely when stopping
+            if (ctx) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+            // Clear all current fireworks and particles for a clean stop
+            fireworks = [];
+            particles = [];
+        }
+
+        // Return the control functions
+        return {
+            init: init,
+            start: start,
+            stop: stop
+        };
+
+    })(); // End of Canvas Fireworks Instance IIFE
+    // --- END NEW: Canvas Fireworks Logic ---
+
+    fireworksCanvasInstance.init();
+
     socket.on('connect', () => {
         console.log('Connected to Presenter SocketIO server');
         socket.emit('request_initial_data');
@@ -371,7 +519,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // While timeoutId is captured, it's primarily managed via teamCardAnimationTimeouts for this specific pattern
     }
 
-    function showSoldAnimation(soldData) {
+function showSoldAnimation(soldData) {
         if (!soldOverlayEl) return;
 
         if(soldPlayerNameEl) soldPlayerNameEl.textContent = escapeHTML(soldData.player_name);
@@ -383,7 +531,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         soldOverlayEl.classList.add('active');
 
+        fireworksCanvasInstance.start(); // NEW: Start canvas fireworks
+
         setTimeout(() => {
+            fireworksCanvasInstance.stop(); // NEW: Stop canvas fireworks
             soldOverlayEl.classList.remove('active');
         }, SOLD_ANIMATION_DURATION);
     }

@@ -474,7 +474,7 @@ html {
 
 /* Sold Animation Overlay */
 .sold-overlay {
-  position: fixed;
+  position: fixed; /* This MUST be fixed for full-screen overlay */
   top: 0;
   left: 0;
   width: 100%;
@@ -487,6 +487,7 @@ html {
   opacity: 0;
   visibility: hidden;
   transition: var(--transition-smooth);
+  /* REMOVE: position: relative; */ /* Fixed elements already establish a positioning context for absolute children. */
 }
 
 .sold-overlay.active {
@@ -496,6 +497,8 @@ html {
 
 .sold-content {
   display: grid;
+  position: relative;
+  z-index: 2;
   grid-template-columns: 1fr auto 1fr;
   gap: 60px;
   align-items: center;
@@ -505,7 +508,11 @@ html {
 }
 
 .sold-player, .sold-team {
-  text-align: center;
+  display: flex; /* ADDED: Use flexbox */
+  flex-direction: column; /* ADDED: Stack children vertically */
+  align-items: center; /* ADDED: Center children horizontally within the flex container */
+  justify-content: center; /* Optional: Centers children vertically if there's extra space in the flex container */
+  /* Remove text-align: center; if it was explicitly there, as flexbox handles it now */
   transform: scale(0);
   animation: zoomIn 0.8s ease-out 0.5s forwards;
 }
@@ -864,6 +871,18 @@ img:not([src]), img[src=""], img[src="#"] { opacity: 0; }
 button:focus, .team-card:focus {
   outline: 2px solid var(--accent-color);
   outline-offset: 2px;
+}
+
+/* Fireworks Container */
+#fireworksCanvas {
+  position: absolute; /* Positioned relative to .sold-overlay */
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1; /* Behind sold-content (which is z-index 2) */
+  pointer-events: none; /* Allows clicks to pass through to sold-content */
+  background: transparent; /* Ensure it's transparent, though the JS will clear it */
 }
 
 /* Print styles */
