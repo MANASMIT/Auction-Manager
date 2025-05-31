@@ -240,50 +240,84 @@ class AuctionEngine:
     def _parse_initial_setup_from_log(self, reader):
         current_section = None
         initial_teams_loaded, initial_players_loaded = False, False
-        # Temporarily clear bid_increment_rules to ensure log's rules are primary if found
-        temp_bid_rules_from_log = [] 
+        temp_bid_rules_from_log = []
 
         for row_num, row in enumerate(reader):
             if not row: continue
-            try: line_cont = row[0].strip()
-            except IndexError: self._add_error(f"LogParse (Initial L{row_num+1}): Malformed CSV row."); continue
+            try:
+                line_cont = row[0].strip()
+            except IndexError:
+                self._add_error(f"LogParse (Initial L{row_num+1}): Malformed CSV row (empty or unreadable)."); continue
 
-            if line_cont.startswith('['): 
+            if line_cont.startswith('['):
                 current_section = line_cont
-                if current_section == LOG_SECTION_AUCTION_STATES: break
+                if current_section == LOG_SECTION_AUCTION_STATES:
+                    break
                 continue
 
             if current_section == LOG_SECTION_CONFIG:
-                if line_cont.startswith('#') and CSV_DELIMITER in line_cont:
-                    try:
-                        # Split only on the first delimiter for key-value
-                        key_part, value_part = line_cont[1:].split(CSV_DELIMITER, 1)
-                        key = key_part.strip()
-                        value = value_part.strip()
+                raw_key_part = row[0].strip()
+                if not raw_key_part.startswith('#'):
+                    self._add_error(f"LogParse (Config L{row_num+1}): Expected config key to start with '#'. Got: {raw_key_part}. Row: {row}")
+                    continue
 
-                        if key == LOG_KEY_AUCTION_NAME: self.auction_name = value
-                        elif key == "BidIncrementRules" and value:
+                key = raw_key_part[1:] # Remove '#'
+
+                if len(row) > 1:
+                    # If the key is BidIncrementRules, the value might be split across multiple row elements
+                    # because the JSON string itself contains commas. We need to rejoin them.
+                    if key == "BidIncrementRules":
+                        # Rejoin all parts from row[1] onwards with a comma, as they were split by csv.reader
+                        # This reconstructs the original JSON string.
+                        value_str = CSV_DELIMITER.join(row[1:]) 
+                        value = value_str.strip() # Then strip any leading/trailing whitespace from the reconstructed string
+                    else:
+                        # For other keys like AuctionName, the value is expected to be in row[1] only
+                        value = row[1].strip()
+
+                    if key == LOG_KEY_AUCTION_NAME:
+                        if value:
+                            self.auction_name = value
+                        
+                    elif key == "BidIncrementRules":
+                        if value: 
                             try:
-                                loaded_rules = json.loads(value)
-                                if isinstance(loaded_rules, list):
-                                    for item in loaded_rules:
-                                        if isinstance(item, list) and len(item) == 2 and \
-                                           isinstance(item[0], int) and isinstance(item[1], int) and \
-                                           item[0] >=0 and item[1] > 0:
+                                loaded_rules_list = json.loads(value) # Now 'value' should be the complete JSON string
+                                if isinstance(loaded_rules_list, list):
+                                    valid_rules_found_for_this_entry = False
+                                    for item in loaded_rules_list:
+                                        if isinstance(item, (list,tuple)) and len(item) == 2 and \
+                                           all(isinstance(num, int) for num in item) and \
+                                           item[0] >= 0 and item[1] > 0:
                                             temp_bid_rules_from_log.append(tuple(item))
-                                        else: self._add_error(f"LogParse (Config): Malformed item in BidIncrementRules: {item}")
-                                else: self._add_error(f"LogParse (Config): BidIncrementRules not a list: {value}")
-                            except json.JSONDecodeError: self._add_error(f"LogParse (Config): Bad BidIncrementRules JSON: {value}")
-                    except ValueError: # If split fails
-                        self._add_error(f"LogParse (Config L{row_num+1}): Malformed config line (not key-value): {line_cont}")
+                                            valid_rules_found_for_this_entry = True
+                                        else:
+                                            self._add_error(f"LogParse (Config): Malformed rule item in BidIncrementRules: {item}. Value: {value}")
+                                    if not valid_rules_found_for_this_entry and loaded_rules_list:
+                                        self._add_error(f"LogParse (Config): No valid rules parsed from BidIncrementRules entry. Value: {value}")
+                                elif loaded_rules_list is not None: # if json.loads was successful but it's not a list (e.g. a string, int)
+                                     self._add_error(f"LogParse (Config): BidIncrementRules value is not a list: {value}. Row: {row}")
+                                # If loaded_rules_list is None (e.g. json.loads("null")), it's not an error per se, just no rules.
+                            except json.JSONDecodeError as e:
+                                self._add_error(f"LogParse (Config): JSON error decoding BidIncrementRules: {value}. Error: {e}. Row: {row}")
+                        # else: No value for BidIncrementRules, defaults will be used later.
+                    # ... (other config keys)
+                else:
+                    # ... (handling for keys with no value part, same as before)
+                    if key == LOG_KEY_AUCTION_NAME:
+                         self._add_error(f"LogParse (Config L{row_num+1}): {LOG_KEY_AUCTION_NAME} found without a value part. Row: {row}")
+                    elif key == "BidIncrementRules":
+                         self._add_error(f"LogParse (Config L{row_num+1}): BidIncrementRules key found without a value part. Row: {row}")
 
-            elif current_section == LOG_SECTION_TEAMS_INITIAL: # Simplified, assuming CSV from engine
+
+            elif current_section == LOG_SECTION_TEAMS_INITIAL:
+                # ... (same as your existing correct code)
                 if line_cont.startswith('#'): continue 
                 try:
-                    # Expecting: TeamName, TeamID, StartingMoney, LogoPath (optional)
-                    if len(row) >= 3: # Min 3 columns
+                    if len(row) >= 3: 
                         name, team_id, money_str = row[0].strip(), row[1].strip(), row[2].strip()
-                        logo_path = row[3].strip() if len(row) >= 4 else None # Get logo path if present
+                        logo_path_raw = row[3].strip() if len(row) >= 4 else "" 
+                        logo_path = logo_path_raw if logo_path_raw else None    
                         if not name: self._add_error(f"LogParse (Teams L{row_num+1}): Empty name. Skip: {row}"); continue
                         if not team_id: self._add_error(f"LogParse (Teams L{row_num+1}): Empty ID for '{name}'. Skip: {row}"); continue
                         self.teams_data[name] = {"money": int(money_str), "inventory": {}, "id": team_id, "logo_path": logo_path}
@@ -293,14 +327,15 @@ class AuctionEngine:
                 except (ValueError, IndexError) as e: self._add_error(f"LogParse (Teams L{row_num+1}): Error {e}. Skip: {row}")
 
             elif current_section == LOG_SECTION_PLAYERS_INITIAL:
+                # ... (same as your existing correct code)
                 if line_cont.startswith('#'): continue
                 try:
-                    # Expecting: PlayerName, PlayerID, BaseBid, ProfilePhotoPath (optional)
-                    if len(row) >= 3: # Min 3 columns
+                    if len(row) >= 3: 
                         name, player_id, bid_str = row[0].strip(), row[1].strip(), row[2].strip()
-                        photo_path = row[3].strip() if len(row) >= 4 else None # Get photo path if present
+                        photo_path_raw = row[3].strip() if len(row) >= 4 else "" 
+                        photo_path = photo_path_raw if photo_path_raw else None  
                         if not name: self._add_error(f"LogParse (Players L{row_num+1}): Empty name. Skip: {row}"); continue
-                        if not player_id: self._add_error(f"LogParse (Players L{row_num+1}): Empty ID '{name}'. Skip: {row}"); continue
+                        if not player_id: self._add_error(f"LogParse (Players L{row_num+1}): Empty ID for '{name}'. Skip: {row}"); continue
                         base_bid = int(bid_str)
                         self.players_initial_info[name] = {"base_bid": base_bid, "id": player_id, "photo_path": photo_path}
                         self.player_name_to_id[name] = player_id; self.player_id_to_name[player_id] = name
@@ -309,19 +344,31 @@ class AuctionEngine:
                 except (ValueError, IndexError) as e: self._add_error(f"LogParse (Players L{row_num+1}): Error {e}. Skip: {row}")
         
         if temp_bid_rules_from_log:
-            # ... (bid rules loading same)
             self.bid_increment_rules = temp_bid_rules_from_log
             self.bid_increment_rules.sort(key=lambda x: x[0], reverse=True)
-        else: # No rules in log, ensure defaults are set and sorted
+        else:
             self.bid_increment_rules = list(self.DEFAULT_BID_INCREMENT_RULES)
             self.bid_increment_rules.sort(key=lambda x: x[0], reverse=True)
-            if current_section != LOG_SECTION_AUCTION_STATES: # Only add error if we didn't break early
-                 self._add_error("No BidIncrementRules found in log config; using defaults.")
+            
+            is_config_processed_and_rules_expected = False
+            # Check if the log file intended to have BidIncrementRules
+            with open(self.log_filepath, 'r', newline='', encoding='utf-8') as temp_f:
+                log_content_for_check = temp_f.read()
+                if LOG_SECTION_CONFIG in log_content_for_check and "BidIncrementRules" in log_content_for_check:
+                    is_config_processed_and_rules_expected = True
+            
+            if is_config_processed_and_rules_expected and not temp_bid_rules_from_log and current_section != LOG_SECTION_AUCTION_STATES :
+                 self._add_error("BidIncrementRules entry found in log config, but no valid rules were parsed from it (or it was empty/malformed); using defaults.")
+            elif current_section != LOG_SECTION_AUCTION_STATES and not temp_bid_rules_from_log: # General case if no rules found
+                # This might be too noisy if BidIncrementRules is optional and not present.
+                # Consider if this warning is always desired.
+                # self._add_error("No BidIncrementRules found in log config or rules were invalid; using defaults.")
+                pass
 
 
         if not initial_teams_loaded: raise LogFileError("No valid initial team data found in log.")
         if not initial_players_loaded: raise LogFileError("No valid initial player data found in log.")
-
+        
     def _apply_state_snapshot(self, snapshot_dict, from_history_viewer=False):
         for team_name in self.teams_data:
             self.teams_data[team_name]["money"] = 0 
