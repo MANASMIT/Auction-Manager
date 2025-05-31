@@ -204,7 +204,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 li.className = 'roster-item';
                 li.innerHTML = `
                     <span>${player}</span>
-                    <span>₹${price.toLocaleString()}</span>
+                    <span class="player-prices">
+                        Sold: ₹${price.sold_price.toLocaleString()}
+                        (Base: ₹${price.base_bid ? price.base_bid.toLocaleString() : 'N/A'})
+                    </span>
                 `;
                 ulElement.appendChild(li);
             }
