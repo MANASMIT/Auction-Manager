@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ my_team_name }} - Manager View | {{ auction_name }}</title>
+    <link rel="icon" href="\assets\auction-command-icon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="\assets\auction-command-icon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/manager.css') }}">
+    <script src="{{ url_for('static', filename='js/socket.io.js') }}"></script>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <div class="live-indicator">
+                <div class="live-dot"></div>
+                LIVE - {{ auction_name }}
+            </div>
+            <div class="team-info">
+                <span>{{ my_team_name }}</span>
+                <span class="team-funds" id="my-team-funds">Loading...</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-container">
+        <!-- Current Player Section - Always Visible Structure -->
+        <div class="player-card">
+            <div id="player-content"> <!-- This div is now always effectively visible -->
+                <img id="item-photo" src="#" alt="Player Photo" class="player-image" style="display:block;"> <!-- Image display controlled by JS -->
+                <h2 id="item-name" class="player-name">Waiting for Player...</h2>
+                
+                <div class="bid-info-grid">
+                    <div class="bid-info-item">
+                        <div class="bid-label">Base Bid</div>
+                        <div id="item-base-bid" class="bid-value">₹--</div>
+                    </div>
+                    <div class="bid-info-item">
+                        <div class="bid-label">Current Bid</div>
+                        <div id="current-bid-amount" class="bid-value">₹--</div>
+                    </div>
+                </div>
+
+                <!-- current-bidder-section is always visible, content changes -->
+                <div id="current-bidder-section" class="current-bidder-section"> 
+                    <div class="current-bidder-label">Current Highest Bidder</div>
+                    <div id="highest-bidder-name" class="current-bidder-name">--</div>
+                </div>
+
+                <div class="bid-action-section">
+                    <div class="next-bid-info">
+                        <span class="next-bid-label">Your next bid:</span>
+                        <span id="next-bid-value" class="next-bid-value">--</span>
+                    </div>
+                    
+                    <div class="money-left-info">
+                        <span class="money-left-label">Money left after bid:</span>
+                        <span id="money-left-after-bid" class="money-left-value">--</span>
+                    </div>
+                    
+                    <button id="bid-button" class="bid-button" disabled>
+                        Place Bid for {{ my_team_name }}
+                    </button>
+                    
+                    <!-- bid-feedback is always visible, content changes -->
+                    <div id="bid-feedback" class="feedback-message">--</div> 
+                </div>
+            </div>
+        </div>
+
+        <!-- Expandable Sections (remain the same) -->
+        <div class="expandable-sections">
+            <!-- My Team Section -->
+            <button class="section-toggle" onclick="toggleSection('my-team-content')">
+                My Roster
+                <span class="chevron">▼</span>
+            </button>
+            <div id="my-team-content" class="section-content">
+                <ul id="my-team-roster" class="roster-list">
+                    <!-- Roster items will be added here by manager.js -->
+                </ul>
+            </div>
+
+            <!-- Other Teams Section -->
+            <button class="section-toggle" onclick="toggleSection('other-teams-content')">
+                Other Teams
+                <span class="chevron">▼</span>
+            </button>
+            <div id="other-teams-content" class="section-content">
+                <select id="other-teams-dropdown" class="other-teams-dropdown">
+                    <option value="">-- Select a team --</option>
+                    {% for team in all_team_names %}
+                        {% if team != my_team_name %}
+                            <option value="{{ team }}">{{ team }}</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+                <div id="other-team-info" style="display:none;">
+                    <h3 id="other-team-name-display"></h3>
+                    <p>Funds: <span id="other-team-funds"></span></p>
+                    <ul id="other-team-roster-display" class="roster-list"></ul>
+                </div>
+            </div>
+
+            <!-- Recently Sold Section -->
+            <button class="section-toggle" onclick="toggleSection('sold-ticker-content')">
+                Recently Sold
+                <span class="chevron">▼</span>
+            </button>
+            <div id="sold-ticker-content" class="section-content">
+                <div id="sold-ticker" class="sold-ticker">
+                    <ul>
+                        <!-- Sold items will be added here by manager.js -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Hidden elements for compatibility if needed -->
+    <img id="bidder-logo" style="display: none;" alt="Bidder Logo">
+    <img id="my-team-logo" style="display: none;" alt="My Team Logo">
+    <img id="other-team-logo-display" style="display: none;" alt="Other Team Logo">
+
+    <script>
+        // Pass the team name to JavaScript
+        const MY_TEAM_NAME = "{{ my_team_name }}";
+        
+        function toggleSection(sectionContentId) {
+            const sectionContent = document.getElementById(sectionContentId);
+            const button = sectionContent.previousElementSibling; 
+            const chevron = button.querySelector('.chevron');
+            
+            if (sectionContent.classList.contains('active')) {
+                sectionContent.classList.remove('active');
+                chevron.classList.remove('rotated');
+            } else {
+                sectionContent.classList.add('active');
+                chevron.classList.add('rotated');
+            }
+        }
+    </script>
+    <script src="{{ url_for('static', filename='js/manager.js') }}"></script>
+</body>
+</html>
